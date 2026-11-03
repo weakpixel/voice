@@ -178,8 +178,8 @@ func (s *Stream) NoteOn(owner voice.Owner, inst voice.Instrument, note, velocity
 }
 
 // NoteOff implements voice.Sink.
-func (s *Stream) NoteOff(owner voice.Owner, note float32) {
-	s.push(command{kind: cmdNoteOff, owner: owner, note: note})
+func (s *Stream) NoteOff(owner voice.Owner, inst voice.Instrument, note float32) {
+	s.push(command{kind: cmdNoteOff, owner: owner, inst: inst, note: note})
 }
 
 // Release implements voice.Sink.
@@ -272,9 +272,9 @@ func (s *Stream) apply(c *command) {
 		if tbl == nil || int(c.inst) >= voice.InstrumentCount || tbl[c.inst] == nil {
 			return
 		}
-		s.pool.noteOn(noteOn{owner: c.owner, patch: tbl[c.inst], note: c.note, velocity: c.velocity, pan: c.pan})
+		s.pool.noteOn(noteOn{owner: c.owner, inst: c.inst, patch: tbl[c.inst], note: c.note, velocity: c.velocity, pan: c.pan})
 	case cmdNoteOff:
-		s.pool.noteOff(c.owner, c.note)
+		s.pool.noteOff(c.owner, c.inst, c.note)
 	case cmdRelease:
 		s.pool.release(c.owner)
 	case cmdPatch:

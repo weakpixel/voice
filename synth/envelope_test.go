@@ -95,7 +95,7 @@ func TestNoClicks(t *testing.T) {
 			setPatch(t, s, 1, 0, p)
 			s.NoteOn(1, 0, 57, 1, 0)
 			x := render(s, 100*time.Millisecond)
-			s.NoteOff(1, 57)
+			s.NoteOff(1, 0, 57)
 			x = append(x, render(s, 100*time.Millisecond)...)
 			// A 220 Hz waveform steps at most ~2πf/rate per frame for the
 			// sine; band-limited square and saw jumps are what PolyBLEP

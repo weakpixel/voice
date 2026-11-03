@@ -25,7 +25,7 @@ Each speaker needs its own owner on the stream, and the stream needs that owner'
 
 `voice.NewSpeaker(sink, owner)` plays lines on any `voice.Sink` as owner. Use it from one goroutine (the game loop).
 
-- `Say(v, text, opts)` composes the line and starts it; a running line is stopped first (its notes released, a `Stopped` event). Notes and reveals due at time 0 happen at once, so the first character shows right away. `SayOptions.Language` is the language (nil means the default), `Speed` scales playback (2 is twice as fast, 0 means 1), `Instant` shows all text at once and plays only the motif.
+- `Say(v, text, opts)` composes the line and starts it; a running line is stopped first (its notes released, a `Stopped` event). Notes and reveals due at time 0 happen at once, so the first character shows right away. `SayOptions.Language` is the language (nil means the default), `Speed` scales playback (2 is twice as fast, 0 means 1), `Instant` shows all text at once and plays only the motif. `Clock` and `MuteBeat` time a voice with a [rhythm](#rhythm) to the game's music (see [Compose](#compose)); while a `Clock` is set, `Speed` is ignored.
 - `Update(dt)` advances the line, sends the notes that are due and moves the reveal. The reveal depends only on the time that has passed, not on the frame rate. It allocates nothing.
 - `Revealed()` is how many bytes of the text to show; `text[:Revealed()]` always ends between tokens, never inside a character.
 - `Skip()` shows all text and releases the notes (`Skipped`). `Stop()` releases the notes and leaves the text as it is (`Stopped`). `Pause()` stops time and releases the sounding notes (a held note would hang); `Resume()` continues with the next notes. `Close()` stops like `Stop` and makes later `Say` calls do nothing.
@@ -89,7 +89,7 @@ Symbols must be unique across phonemes and punctuation, compared case-insensitiv
 
 ## Voices (`*.voice.json`)
 
-A voice is how one character speaks. Four starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"` and `"divine"`:
+A voice is how one character speaks. Five starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"`, `"divine"` and `"flow"`:
 
 | Voice | Sound |
 | --- | --- |
@@ -97,6 +97,7 @@ A voice is how one character speaks. Four starter voices are built in, `voice.Pr
 | `chirpy` | high and fast, square blips that glide into each note, wide pitch variation |
 | `gruff` | low and slow, detuned filtered saw |
 | `divine` | very low and slow, orchestral: each syllable a chord (root, octave below, fifth above) of five-copy unison saws, long swells, deep in the reverb, a slow pad underneath |
+| `flow` | rhythmic, like a rapper: low punchy square blips on a 92 bpm grid of sixteenths with a light swing, over kick, snare and hi-hat after one bar of count-in |
 
 ```json
 {
@@ -134,10 +135,52 @@ A voice is how one character speaks. Four starter voices are built in, `voice.Pr
 | `motifVolume` | loudness of the motif, 0 to 1 (default 0.2); 0 turns it off |
 | `seed` | mixed with a hash of the text; change it for a different melody of the same lines |
 | `instruments` | `vowel` (required), `sonorant`, `fricative`, `plosive`, `motif`; missing ones play the vowel's sound |
+| `percussion` | named [percussion sounds](#percussion) the rhythm's beat plays, at most 8 |
+| `rhythm` | puts the voice on a [beat grid](#rhythm); left out, the voice speaks freely |
 
-An instrument has the fields of a [synth patch](#patch), with times in milliseconds: `wave` (`sine` default, `triangle`, `square`, `saw`, `noise`), `pulseWidth`, `detune`, `attackMs`, `decayMs`, `sustain`, `releaseMs`, `glideFrom`, `glideMs`, `vibratoRate`, `vibratoDepth`, `vibratoDelayMs`, `cutoff`, `resonance`, `gain`, `reverb`, `layers`, `unison`, `spread`. Or it is a sample: `sample` (a name your loader resolves), `root` (default 60), `loop`, `loopStart`, `loopEnd`, plus the envelope, glide, vibrato, filter, gain, reverb and layers fields (not unison). A wave and a sample together are an error.
+An instrument has the fields of a [synth patch](#patch), with times in milliseconds: `wave` (`sine` default, `triangle`, `square`, `saw`, `noise`), `pulseWidth`, `detune`, `attackMs`, `decayMs`, `sustain`, `releaseMs`, `glideFrom`, `glideMs`, `vibratoRate`, `vibratoDepth`, `vibratoDelayMs`, `filter` (`lowpass` default, `highpass`, `bandpass`), `cutoff`, `resonance`, `gain`, `reverb`, `layers`, `unison`, `spread`. Or it is a sample: `sample` (a name your loader resolves), `root` (default 60), `loop`, `loopStart`, `loopEnd`, plus the envelope, glide, vibrato, filter, gain, reverb and layers fields (not unison). A wave and a sample together are an error.
 
 Loading (`LoadLanguage`, `LoadVoice` from an `io.Reader`, `LoadLanguageFS`, `LoadVoiceFS` from an `fs.FS`) reports malformed JSON and unknown fields on their own; otherwise all validation errors together, each with its JSON path, for example `voice: voice: instruments.vowel.sustain: 2 is outside 0 to 1`. A loaded `Voice` is a plain struct you may change; `Voice.Validate` checks it again.
+
+### Percussion
+
+```json
+"percussion": {
+  "kick": {"gain": 1.2},
+  "boom": {"base": "tom", "note": 38},
+  "zap": {"wave": "square", "note": 84, "decayMs": 40, "gain": 0.5}
+}
+```
+
+Each entry is an instrument (the fields above) plus `note`, the note every hit plays (0 to 127, default 60), and `base`, a built-in sound to start from: the entry's own fields replace the built-in's. An entry named like a built-in starts from it, so `"kick": {"gain": 1.2}` is a louder built-in kick. The built-in sounds (`voice.PercussionNames()`, `voice.BuiltinPercussion(name)`) are `kick`, `snare`, `hat`, `clap`, `tom`, `rim` and `shaker`; a beat may name them without defining them. A voice has at most `voice.MaxPercussion` (8) sounds, sorted by name in `Voice.Percussion`; sound i plays on instrument `voice.InstPercussion + i`.
+
+### Rhythm
+
+```json
+"rhythm": {
+  "bpm": 92,
+  "division": 4,
+  "swing": 0.1,
+  "accents": [1, 0, 0, 0, 0.6, 0, 0, 0, 1, 0, 0, 0, 0.6, 0, 0, 0],
+  "rest": {"pause": "beat", "end": "bar"},
+  "countIn": 1,
+  "beatVolume": 0.8,
+  "beat": {"kick": "x.....x...x.....", "snare": "....x.......x...", "hat": "x.x.x.x.x.x.x-x-"}
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `bpm` | tempo, 40 to 240 (default 90) |
+| `division` | grid steps per beat: 2 (eighths), 3 (triplets) or 4 (sixteenths, the default). A bar has 4 beats |
+| `swing` | delays every second step by this share of a step, 0 to 0.5 |
+| `accents` | strength 0 to 1 of each step of a bar (4 × `division` values); left out, beats 1 and 3 are strong (1), 2 and 4 medium (0.6), the steps between them none |
+| `rest` | where the voice starts again after punctuation: `none`, `step` (the punctuation's pause rounded to steps), `beat` (the next beat) or `bar` (the next bar). `pause` is for punctuation without an end rule (`,` `;` `:` `...`, default `beat`), `end` for punctuation with one (`.` `?` `!`, default `bar`). Every rest but `none` leaves at least one silent step |
+| `countIn` | bars of beat before the voice starts, 0 to 2 |
+| `beatVolume` | velocity of a percussion hit, 0 to 1 (default 0.8) |
+| `beat` | one pattern per percussion sound, one character per step of a bar: `x` a hit, `-` a ghost hit (half velocity), `.` a rest |
+
+How a rhythmic line is timed is described under [Compose](#compose).
 
 ## Parse
 
@@ -147,7 +190,7 @@ Loading (`LoadLanguage`, `LoadVoice` from an `io.Reader`, `LoadLanguageFS`, `Loa
 
 A `Speaker` does this for you; use `Compose` directly to render offline or to drive another sound engine.
 
-`voice.Compose(v, text, tokens)` (or `ComposeText(v, lang, text)`) turns tokens into a `Timeline`: `Notes` (on and off time, instrument, note, velocity, pan; sorted by on time), `Reveals` (from this time on, show the text up to this byte offset) and `Duration`. It is pure: the same voice and text always give the same timeline.
+`voice.Compose(v, text, tokens)` (or `ComposeText(v, lang, text)`, or `ComposeWith(v, text, tokens, opts)` with options) turns tokens into a `Timeline`: `Notes` (on and off time, instrument, note, velocity, pan; sorted by on time), `Reveals` (from this time on, show the text up to this byte offset) and `Duration`. It is pure: the same voice, text and options always give the same timeline.
 
 - A beat is `1/speed` seconds. A phoneme takes `length` beats; its note sounds for the voice's `length` share of that, at `baseNote + pitch + phoneme pitch ± variation`, on the instrument of its category.
 - Pauses add silence. Skipped characters take no time.
@@ -156,16 +199,27 @@ A `Speaker` does this for you; use `Compose` directly to render offline or to dr
 - The motif is two to four long soft notes on the `motif` instrument, an octave below the voice: one per clause (a single clause is split in two, more than four clauses are grouped into four). Each motif note moves from the previous one: down after a fall, up after a rise or accent (louder too), a small step otherwise.
 - `Duration` is the end of the last phoneme; a final pause does not count. The last reveal shows the whole text.
 
-To play a timeline yourself, call `NoteOn` at each note's `On` and `NoteOff` at its `Off`, offs first when they share a time with ons.
+A voice with a `rhythm` is timed on its beat grid instead (contours and the motif stay as above):
+
+- Phonemes are grouped into syllables. Within a word, each vowel is a syllable's nucleus; of the consonants between two vowels, the last one starts the next syllable and the others end the previous one. A word without a vowel is one syllable.
+- Each syllable takes whole steps: its natural length (its phonemes' slots at `speed`) rounded to the nearest step, at least one. So `speed` still decides how dense the flow is. Its nucleus starts on a step; its leading consonants come just before it (at most half a step, less with swing); its nucleus and trailing consonants fill the rest of its steps.
+- Whitespace takes no time, so words flow together. Punctuation rests as `rest` says.
+- The accent of the nucleus's step makes the syllable up to 40 % louder and 2 semitones higher.
+- The first nucleus sits on the bar line after the count-in (or, without a count-in, right after its leading consonants). The beat plays from the count-in to the end of the bar in which the voice's last sound ends, and `Duration` covers it.
+- Text is revealed when its sound starts, so nothing shows during the count-in.
+
+`ComposeOptions` (also in `SayOptions`) tie a rhythmic line to the game's music. `Clock{BPM, Phase}` replaces the voice's tempo and puts the first nucleus on a bar line of the music: `Phase` is the time from the start of the line until the music's next bar begins (taken modulo a bar, so the negated time since the music started works too). The voice starts after its count-in, one bar later if its leading consonants do not fit before the bar line. `MuteBeat` leaves out the percussion, when the music has its own. Both do nothing for a voice without a rhythm.
+
+To play a timeline yourself, call `NoteOn` at each note's `On` and `NoteOff` (with the note's instrument) at its `Off`, offs first when they share a time with ons.
 
 ## The `Sink` (package `voice`)
 
-`voice.Sink` is where the notes of a line go: `NoteOn(owner, inst, note, velocity, pan)`, `NoteOff(owner, note)` and `Release(owner)`.
+`voice.Sink` is where the notes of a line go: `NoteOn(owner, inst, note, velocity, pan)`, `NoteOff(owner, inst, note)` and `Release(owner)`.
 
 - `Owner` is a small integer per speaker. Notes of different owners never touch each other: `Release(2)` ends the notes of owner 2 only.
-- `Instrument` is one of `InstVowel`, `InstSonorant`, `InstFricative`, `InstPlosive`, `InstMotif` (`voice.InstrumentCount` of them).
+- `Instrument` is one of `InstVowel`, `InstSonorant`, `InstFricative`, `InstPlosive`, `InstMotif`, or a percussion sound `InstPercussion + i` (`voice.InstrumentCount`, 13, in all).
 - Notes are float semitones in MIDI numbering (60 is middle C, 69 is 440 Hz). Velocity is 0 to 1, pan is -1 (left) to 1 (right).
-- Every `NoteOn` must be matched by a `NoteOff` with the same owner and note, or by `Release(owner)`.
+- Every `NoteOn` must be matched by a `NoteOff` with the same owner, instrument and note, or by `Release(owner)`. A `NoteOff` ends every sounding note of that owner, instrument and pitch, so a percussion hit never ends a motif note at the same pitch.
 
 `synth.Stream` implements it.
 
@@ -186,7 +240,7 @@ s, err := synth.NewStream(synth.StreamConfig{
 - `Read(p)` fills `p` with whole stereo frames, little endian: 8 bytes a frame for `FormatFloat32` (what Ebiten's `NewPlayerF32` reads), 4 for `FormatInt16`. It never returns an error or `io.EOF`.
 - `Render(left, right)` fills two float32 slices of the same length, for offline rendering. It continues where `Read` left off.
 - `SetPatch(owner, inst, patch)` sets the sound of one instrument of one owner. It returns the patch's validation errors (all of them) and sets nothing if the patch is invalid. Notes already sounding keep their old patch. A note on an instrument without a patch is ignored.
-- `SetVoice(owner, v, load)` sets all five instruments of a voice at once (`synth.PatchFromSpec` for each); `load` resolves sample names and may be nil when the voice uses none. It reports every instrument's errors together and sets nothing on error.
+- `SetVoice(owner, v, load)` sets all instruments of a voice at once, its five instruments and its percussion sounds (`synth.PatchFromSpec` for each); `load` resolves sample names and may be nil when the voice uses none. It reports every instrument's errors together and sets nothing on error.
 - `SetGain(g)` sets the master gain (1 by default). The output is clipped to -1 to 1.
 - `SetReverb(synth.Reverb{Size, Damping, Width})` sets the stream's one reverb (all fields 0 to 1; `synth.DefaultReverb` is Size 0.75, Damping 0.4, Width 1). Every patch sends into it with its own `Reverb` level, so one stream is one room for all speakers. A reverb that receives nothing and has died away costs nothing.
 
@@ -207,7 +261,7 @@ A patch is an oscillator, or a sample when `Sample` is set, followed by the filt
 | `Env` | `Attack`, `Decay`, `Sustain` (0 to 1), `Release` |
 | `Glide` | the note starts `From` semitones away and slides to the pitch over `Time` |
 | `Vibrato` | pitch sine of `Rate` Hz and `Depth` semitones (peak), starting `Delay` after the note on |
-| `Filter` | resonant low-pass: `Cutoff` in Hz (0 is off, at most 45 % of the sample rate), `Resonance` 0 to below 1 |
+| `Filter` | resonant filter: `Type` (`LowPass`, the default, `HighPass` or `BandPass`), `Cutoff` in Hz (0 is off, at most 45 % of the sample rate), `Resonance` 0 to below 1 |
 | `Gain` | output level; 0 means 1 |
 | `Reverb` | send into the stream's reverb, 0 (dry, the default) to 1 |
 | `Layers` | semitone offsets played together for each note, like a chord: `[0, -12, 7]` is the note, an octave below and a fifth above. Each layer takes a voice; the velocity is scaled by 1/√n so a chord is about as loud as one note. `NoteOff` and `Release` end all layers. Empty means `[0]`; at most 4 |
@@ -234,6 +288,7 @@ A sample sounds at its own pitch for the note `Root` and is resampled (linear in
 ```bash
 go run ./cmd/voiceplay -voice soft -o build/line.wav "Hello there, traveler!"
 go run ./cmd/voiceplay -voice my.voice.json -lang my.lang.json "Kel thae, varan."
+go run ./cmd/voiceplay -voice flow -o build/flow.wav "Yo, listen up. I came from the hills, with nothing but skills."
 go run ./cmd/voiceplay -patches -voice gruff -o build/gruff-patches.wav
 go run ./cmd/voiceplay -patches -o build/patches.wav
 ```
@@ -242,7 +297,7 @@ go run ./cmd/voiceplay -patches -o build/patches.wav
 | --- | --- |
 | `-voice` | a starter voice by name (default `soft`) or a `*.voice.json` file; its samples are 16-bit PCM WAV files resolved next to it |
 | `-lang` | a `*.lang.json` file (default the built-in language) |
-| `-patches` | instead of a line, play a short rising phrase on each instrument of the voice; without `-voice`, on each built-in test patch of the synthesizer |
+| `-patches` | instead of a line, play a short rising phrase on each instrument of the voice and four hits on each percussion sound; without `-voice`, on each built-in test patch of the synthesizer |
 | `-o` | output WAV (default `build/line.wav`, or `build/patches.wav` with `-patches`) |
 | `-rate` | sample rate (default 48000) |
 

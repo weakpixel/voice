@@ -1,6 +1,9 @@
 package voice
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // InstrumentSpec describes the sound of one instrument of a voice, as written
 // in a voice file: an oscillator patch, or a sample reference when Sample is
@@ -22,6 +25,7 @@ type InstrumentSpec struct {
 	VibratoRate    float32   `json:"vibratoRate,omitempty"`
 	VibratoDepth   float32   `json:"vibratoDepth,omitempty"`
 	VibratoDelayMs float32   `json:"vibratoDelayMs,omitempty"`
+	Filter         string    `json:"filter,omitempty"` // lowpass (default), highpass, bandpass
 	Cutoff         float32   `json:"cutoff,omitempty"`
 	Resonance      float32   `json:"resonance,omitempty"`
 	Gain           float32   `json:"gain,omitempty"`
@@ -41,6 +45,9 @@ type InstrumentSpec struct {
 
 // Waves lists the valid values of InstrumentSpec.Wave.
 var Waves = []string{"sine", "triangle", "square", "saw", "noise"}
+
+// Filters lists the valid values of InstrumentSpec.Filter.
+var Filters = []string{"lowpass", "highpass", "bandpass"}
 
 func (s *InstrumentSpec) validate(errs *fieldErrors, path string) {
 	if s.Wave != "" {
@@ -69,6 +76,9 @@ func (s *InstrumentSpec) validate(errs *fieldErrors, path string) {
 	errs.inRange(path+".glideFrom", s.GlideFrom, -24, 24)
 	errs.inRange(path+".vibratoRate", s.VibratoRate, 0, 50)
 	errs.inRange(path+".vibratoDepth", s.VibratoDepth, -12, 12)
+	if s.Filter != "" && !slices.Contains(Filters, s.Filter) {
+		errs.add(path+".filter", "%q is not one of lowpass, highpass, bandpass", s.Filter)
+	}
 	errs.inRange(path+".cutoff", s.Cutoff, 0, 100000)
 	if errs.finite(path+".resonance", s.Resonance) && (s.Resonance < 0 || s.Resonance >= 1) {
 		errs.add(path+".resonance", "%g is outside 0 to below 1", s.Resonance)

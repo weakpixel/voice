@@ -61,7 +61,7 @@ func TestOwnersAreSeparate(t *testing.T) {
 	if n := s.pool.sounding(); n != 4 {
 		t.Fatalf("%d voices sounding, want 4", n)
 	}
-	s.NoteOff(1, 60)
+	s.NoteOff(1, voice.InstVowel, 60)
 	s.Release(2)
 	render(s, 50*time.Millisecond)
 	if n := s.pool.sounding(); n != 1 {
@@ -80,7 +80,7 @@ func TestNoteOnOffInOneBlock(t *testing.T) {
 	s := newTestStream(t, 2)
 	setPatch(t, s, 1, 0, heldPatch)
 	s.NoteOn(1, 0, 69, 1, 0)
-	s.NoteOff(1, 69)
+	s.NoteOff(1, voice.InstVowel, 69)
 	x := render(s, 50*time.Millisecond)
 	if peak(x) == 0 {
 		t.Error("note never sounded")
@@ -96,7 +96,7 @@ func TestStealing(t *testing.T) {
 	s.NoteOn(1, 0, 60, 1, 0)
 	s.NoteOn(1, 0, 62, 1, 0)
 	render(s, 10*time.Millisecond)
-	s.NoteOff(1, 62) // 62 releases (slowly): it is stolen before the older 60
+	s.NoteOff(1, voice.InstVowel, 62) // 62 releases (slowly): it is stolen before the older 60
 	render(s, 10*time.Millisecond)
 	s.NoteOn(1, 0, 64, 1, 0)
 	x := render(s, 10*time.Millisecond)
@@ -268,7 +268,7 @@ func TestAllocs(t *testing.T) {
 			s.NoteOn(1, voice.Instrument(i%voice.InstrumentCount), float32(48+i%24), 0.8, 0)
 			i++
 		}
-		s.NoteOff(1, 50)
+		s.NoteOff(1, voice.Instrument(2), 50)
 		s.Release(2)
 		s.Read(buf)
 		s.Render(left, right)
@@ -278,5 +278,19 @@ func TestAllocs(t *testing.T) {
 	}
 	if n := testing.AllocsPerRun(200, step); n != 0 {
 		t.Errorf("Sink calls, Read and Render: %g allocs per run, want 0", n)
+	}
+}
+
+func TestNoteOffMatchesInstrument(t *testing.T) {
+	s := newTestStream(t, 4)
+	held := Patch{Env: Envelope{Sustain: 1, Release: 10 * time.Millisecond}, Gain: 0.5}
+	setPatch(t, s, 1, voice.InstMotif, held)
+	setPatch(t, s, 1, voice.InstPercussion, held)
+	s.NoteOn(1, voice.InstMotif, 42, 1, 0)
+	s.NoteOn(1, voice.InstPercussion, 42, 1, 0)
+	s.NoteOff(1, voice.InstPercussion, 42) // a hit at the motif's pitch
+	render(s, 100*time.Millisecond)
+	if n := s.pool.sounding(); n != 1 {
+		t.Errorf("%d voices sounding, want the motif note only", n)
 	}
 }

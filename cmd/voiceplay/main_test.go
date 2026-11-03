@@ -63,7 +63,7 @@ func TestLineRender(t *testing.T) {
 		if p := peak(left); p < 0.1 || p >= 1 {
 			t.Errorf("%s: peak %g", name, p)
 		}
-		if s := float64(len(left)) / 22050; s < 1 || s > 4 {
+		if s := float64(len(left)) / 22050; s < 1 || s > 8 { // flow has a bar of count-in
 			t.Errorf("%s: %.1f s", name, s)
 		}
 	}

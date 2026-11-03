@@ -13,7 +13,7 @@ import (
 func TestPatchFromSpec(t *testing.T) {
 	p, err := PatchFromSpec(voice.InstrumentSpec{
 		Wave: "square", PulseWidth: 0.3, AttackMs: 2.5, DecayMs: 40, Sustain: 0.5, ReleaseMs: 20,
-		GlideFrom: 3, GlideMs: 15, VibratoRate: 6, VibratoDepth: 0.2, VibratoDelayMs: 50, Cutoff: 2000, Resonance: 0.4, Gain: 0.5,
+		GlideFrom: 3, GlideMs: 15, VibratoRate: 6, VibratoDepth: 0.2, VibratoDelayMs: 50, Filter: "highpass", Cutoff: 2000, Resonance: 0.4, Gain: 0.5,
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -23,7 +23,7 @@ func TestPatchFromSpec(t *testing.T) {
 		Env:     Envelope{Attack: 2500 * time.Microsecond, Decay: 40 * time.Millisecond, Sustain: 0.5, Release: 20 * time.Millisecond},
 		Glide:   Glide{From: 3, Time: 15 * time.Millisecond},
 		Vibrato: Vibrato{Rate: 6, Depth: 0.2, Delay: 50 * time.Millisecond},
-		Filter:  Filter{Cutoff: 2000, Resonance: 0.4}, Gain: 0.5,
+		Filter:  Filter{Type: HighPass, Cutoff: 2000, Resonance: 0.4}, Gain: 0.5,
 	}
 	if !reflect.DeepEqual(p, want) {
 		t.Errorf("got %+v\nwant %+v", p, want)
@@ -71,8 +71,12 @@ func TestSetVoicePresets(t *testing.T) {
 		if err := s.SetVoice(3, v, nil); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		for inst := range voice.Instrument(voice.InstrumentCount) {
-			s.NoteOn(3, inst, v.BaseNote, 0.8, 0)
+		for inst := range voice.InstPercussion + voice.Instrument(len(v.Percussion)) {
+			note := v.BaseNote
+			if inst >= voice.InstPercussion {
+				note = v.Percussion[inst-voice.InstPercussion].Note
+			}
+			s.NoteOn(3, inst, note, 0.8, 0)
 			x := render(s, 600*time.Millisecond) // slow attacks (divine's motif) need a while
 			s.Release(3)
 			render(s, time.Second)
@@ -95,5 +99,41 @@ func TestSetVoiceErrors(t *testing.T) {
 	s.NoteOn(1, voice.InstVowel, 60, 1, 0)
 	if p := peak(render(s, 10*time.Millisecond)); p != 0 {
 		t.Error("a failed SetVoice set patches")
+	}
+}
+
+func TestBuiltinPercussion(t *testing.T) {
+	for _, name := range voice.PercussionNames() {
+		p, _ := voice.BuiltinPercussion(name)
+		patch, err := PatchFromSpec(p.Spec, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		x := playNote(t, patch, p.Note, 500*time.Millisecond)
+		if pk := peak(x); pk < 0.1 || pk >= 1 {
+			t.Errorf("%s: peak %g, want 0.1 to below 1", name, pk)
+		}
+		if tail := rms(x[frames(400*time.Millisecond):]); tail > 1e-4 {
+			t.Errorf("%s: still sounding after 400 ms (rms %g)", name, tail)
+		}
+	}
+	// The kick falls: more zero crossings in its first 20 ms than later.
+	kick, _ := voice.BuiltinPercussion("kick")
+	patch, _ := PatchFromSpec(kick.Spec, nil)
+	x := playNote(t, patch, kick.Note, 100*time.Millisecond)
+	early := zeroCrossings(x[:frames(20*time.Millisecond)])
+	late := zeroCrossings(x[frames(60*time.Millisecond):frames(80*time.Millisecond)])
+	if early <= 2*late {
+		t.Errorf("kick: %d zero crossings in the first 20 ms, %d later, want the pitch to fall", early, late)
+	}
+	// The hat is bright and short.
+	hat, _ := voice.BuiltinPercussion("hat")
+	patch, _ = PatchFromSpec(hat.Spec, nil)
+	x = playNote(t, patch, hat.Note, 250*time.Millisecond)
+	if zc := zeroCrossings(x[:frames(20*time.Millisecond)]); zc < 100 {
+		t.Errorf("hat: %d zero crossings in 20 ms, want a bright sound (100 or more)", zc)
+	}
+	if r := rms(x[frames(150*time.Millisecond):frames(200*time.Millisecond)]); r > 1e-3 {
+		t.Errorf("hat: rms %g after 150 ms, want it over", r)
 	}
 }

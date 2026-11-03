@@ -7,8 +7,8 @@
 // The first form speaks a line with a voice (a starter voice by name, or a
 // voice file whose samples are resolved next to it) in the default language
 // or a language file. -patches plays a short rising phrase on every
-// instrument of the voice, or, without -voice, on every built-in test patch
-// of the synthesizer.
+// instrument of the voice (and four hits on each percussion sound), or,
+// without -voice, on every built-in test patch of the synthesizer.
 package main
 
 import (
@@ -103,10 +103,14 @@ func render(o options) (left, right []float32, what string, err error) {
 		return nil, nil, "", err
 	}
 	if o.patches {
-		for inst := range voice.Instrument(voice.InstrumentCount) {
+		for inst := range voice.InstPercussion {
 			r.phrase(inst)
 		}
-		return r.left, r.right, fmt.Sprintf("voice %s, %d instruments", v.Name, voice.InstrumentCount), nil
+		for i, p := range v.Percussion {
+			r.hits(voice.InstPercussion+voice.Instrument(i), p.Note)
+		}
+		n := int(voice.InstPercussion) + len(v.Percussion)
+		return r.left, r.right, fmt.Sprintf("voice %s, %d instruments", v.Name, n), nil
 	}
 	lang := voice.DefaultLanguage()
 	if o.lang != "" {
@@ -185,7 +189,18 @@ func (r *renderer) phrase(inst voice.Instrument) {
 		note := 60 + step
 		r.s.NoteOn(owner, inst, note, 0.8, 0)
 		r.advance(noteLen)
-		r.s.NoteOff(owner, note)
+		r.s.NoteOff(owner, inst, note)
+		r.advance(noteGap)
+	}
+	r.advance(patchGap)
+}
+
+// hits plays a percussion sound four times at its note.
+func (r *renderer) hits(inst voice.Instrument, note float32) {
+	for range 4 {
+		r.s.NoteOn(owner, inst, note, 0.8, 0)
+		r.advance(noteLen)
+		r.s.NoteOff(owner, inst, note)
 		r.advance(noteGap)
 	}
 	r.advance(patchGap)
