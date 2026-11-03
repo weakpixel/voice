@@ -27,9 +27,10 @@ The plan that describes the milestones is `ecs/plans/voice-library.plan.md` in t
 ## Commands
 
 ```bash
-make all         # every module: go fmt, go vet, go test
+make all         # every module: go fmt, go vet, go test -race
 make wasm-test   # core tests under GOOS=js GOARCH=wasm (Node)
 make bench       # benchmarks of synth and the Speaker
+make bench-wasm  # the same under GOOS=js GOARCH=wasm (Node); numbers go into doc/design.md
 go run ./cmd/voiceplay -voice soft -o build/line.wav "Hello there, traveler!"
 go run ./cmd/voiceplay -patches -o build/patches.wav
 ```
