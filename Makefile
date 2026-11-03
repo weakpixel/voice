@@ -1,6 +1,6 @@
-# Every Go module of the repository. Nested modules (ebiten, sf2) join this
-# list when they are added; each is formatted, vetted and tested on its own.
-MODULES = .
+# Every Go module of the repository; each is formatted, vetted and tested on
+# its own. A nested sf2 module joins the list when it is added.
+MODULES = . ebiten
 
 # js/wasm. WASM_ENV runs go test under go_js_wasm_exec (Node): it puts the
 # exec wrapper on PATH and starts from an empty environment, because Node
@@ -24,6 +24,7 @@ wasm-test:
 	@command -v node >/dev/null || { echo "wasm-test: node not found"; exit 1; }
 	$(WASM_ENV) go vet ./...
 	$(WASM_ENV) go test ./...
+	cd ebiten && $(WASM_ENV) go vet ./...
 
 # Benchmarks of the synthesizer (and later the Speaker), native.
 .PHONY: bench

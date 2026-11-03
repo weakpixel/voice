@@ -19,7 +19,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -115,9 +114,8 @@ func render(o options) (left, right []float32, what string, err error) {
 			return nil, nil, "", err
 		}
 	}
-	tl := voice.ComposeText(v, lang, o.text)
-	r.timeline(tl)
-	return r.left, r.right, fmt.Sprintf("voice %s, %d notes", v.Name, len(tl.Notes)), nil
+	n := r.speak(v, lang, o.text)
+	return r.left, r.right, fmt.Sprintf("voice %s, %d notes", v.Name, n), nil
 }
 
 // loadVoice returns a starter voice by name, or a voice file with a loader
@@ -158,22 +156,18 @@ func loadVoice(name string) (*voice.Voice, synth.SampleLoader, error) {
 type renderer struct {
 	s           *synth.Stream
 	rate        int
+	elapsed     time.Duration
 	left, right []float32
 }
 
+// advance renders d more. Frames are counted from the total time, so many
+// short steps do not drift at rates that are not a multiple of 1000.
 func (r *renderer) advance(d time.Duration) {
-	n := int(d.Seconds() * float64(r.rate))
+	r.elapsed += d
+	n := int(r.elapsed.Seconds()*float64(r.rate)) - len(r.left)
 	l, rt := make([]float32, n), make([]float32, n)
 	r.s.Render(l, rt)
 	r.left, r.right = append(r.left, l...), append(r.right, rt...)
-}
-
-// advanceTo renders until t from the start of the output.
-func (r *renderer) advanceTo(t time.Duration) {
-	now := time.Duration(float64(len(r.left)) / float64(r.rate) * float64(time.Second))
-	if t > now {
-		r.advance(t - now)
-	}
 }
 
 // phrase is played on every patch: a rising arpeggio of short notes.
@@ -207,39 +201,17 @@ func (r *renderer) testPatches() error {
 	return nil
 }
 
-// timeline plays tl: note offs before note ons at the same time, so a
-// repeated pitch is not cut by its predecessor's off.
-func (r *renderer) timeline(tl voice.Timeline) {
-	type event struct {
-		at   time.Duration
-		on   bool
-		note voice.Note
+// speak plays a line through a voice.Speaker, updating it every
+// millisecond the way a game loop would, and returns the number of notes.
+func (r *renderer) speak(v *voice.Voice, lang *voice.Language, text string) int {
+	sp := voice.NewSpeaker(r.s, owner)
+	sp.Say(v, text, voice.SayOptions{Language: lang})
+	for !sp.Done() {
+		r.advance(time.Millisecond)
+		sp.Update(time.Millisecond)
 	}
-	var events []event
-	for _, n := range tl.Notes {
-		events = append(events, event{n.On, true, n}, event{n.Off, false, n})
-	}
-	slices.SortStableFunc(events, func(a, b event) int {
-		if c := cmp.Compare(a.at, b.at); c != 0 {
-			return c
-		}
-		if a.on == b.on {
-			return 0
-		}
-		if a.on {
-			return 1
-		}
-		return -1
-	})
-	for _, e := range events {
-		r.advanceTo(e.at)
-		if e.on {
-			r.s.NoteOn(owner, e.note.Instrument, e.note.Note, e.note.Velocity, e.note.Pan)
-		} else {
-			r.s.NoteOff(owner, e.note.Note)
-		}
-	}
-	r.advanceTo(tl.Duration + tail)
+	r.advance(tail)
+	return len(sp.Timeline().Notes)
 }
 
 func writeWAV(path string, rate int, left, right []float32) (err error) {

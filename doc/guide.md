@@ -1,16 +1,55 @@
 # User guide
 
-Package by package. The `Speaker` runtime is not built yet ([design.md](design.md#not-built-yet)); until then, play a [`Timeline`](#compose) yourself.
+Package by package, starting with what a game needs.
 
 ## Speaking a line
 
 ```go
-v, _ := voice.Preset("soft")                          // or voice.LoadVoiceFS(fsys, "guard.voice.json")
-tl := voice.ComposeText(v, voice.DefaultLanguage(), "Hello there, traveler!")
-s, _ := synth.NewStream(synth.StreamConfig{SampleRate: 48000})
-s.SetVoice(1, v, nil)                                  // nil: the voice uses no samples
-// play tl.Notes on s at their times, show the text of tl.Reveals
+stream, _ := synth.NewStream(synth.StreamConfig{SampleRate: 48000})
+player, _ := voiceebiten.NewPlayer(audio.NewContext(48000), stream, 0) // or hand stream (an io.Reader) to any player
+
+v, _ := voice.Preset("soft")              // or voice.LoadVoiceFS(fsys, "guard.voice.json")
+stream.SetVoice(1, v, nil)                // owner 1 plays with this voice's instruments
+sp := voice.NewSpeaker(stream, 1)
+sp.Say(v, "Hello there, traveler!", voice.SayOptions{})
+
+// every frame:
+sp.Update(dt)
+draw(text[:sp.Revealed()])
+for _, e := range sp.Events() { ... }     // Started, Completed, Skipped, Stopped
 ```
+
+Each speaker needs its own owner on the stream, and the stream needs that owner's instruments (`SetVoice`) before the speaker talks. One stream serves every speaker of a game.
+
+## Speaker
+
+`voice.NewSpeaker(sink, owner)` plays lines on any `voice.Sink` as owner. Use it from one goroutine (the game loop).
+
+- `Say(v, text, opts)` composes the line and starts it; a running line is stopped first (its notes released, a `Stopped` event). Notes and reveals due at time 0 happen at once, so the first character shows right away. `SayOptions.Language` is the language (nil means the default), `Speed` scales playback (2 is twice as fast, 0 means 1), `Instant` shows all text at once and plays only the motif.
+- `Update(dt)` advances the line, sends the notes that are due and moves the reveal. The reveal depends only on the time that has passed, not on the frame rate. It allocates nothing.
+- `Revealed()` is how many bytes of the text to show; `text[:Revealed()]` always ends between tokens, never inside a character.
+- `Skip()` shows all text and releases the notes (`Skipped`). `Stop()` releases the notes and leaves the text as it is (`Stopped`). `Pause()` stops time and releases the sounding notes (a held note would hang); `Resume()` continues with the next notes. `Close()` stops like `Stop` and makes later `Say` calls do nothing.
+- `Done()` is true when no line is playing: before the first `Say`, and after a line completed, was skipped or stopped. A line completes when its last sound ends; a final pause does not delay it.
+- `Events()` returns what happened since the previous `Update` began: the events of `Say`, `Skip`, `Stop` and `Close` calls since then and those of the `Update` itself. Each `Event` has its `Kind` and the `Line` number (1 for the first `Say`). The slice is reused and valid until the next `Update`.
+- `Timeline()` is the current line's composed [timeline](#compose).
+
+Every note the speaker starts ends with a `NoteOff` or a `Release` of its owner.
+
+## Ebiten (module `github.com/weakpixel/voice/ebiten`)
+
+A nested module, so only programs that use it depend on Ebiten. `voiceebiten.NewPlayer(ctx, stream, bufferSize)` plays a `FormatFloat32` stream at the context's sample rate (an error otherwise) with the given buffer (0 means 50 ms, which keeps the sound within about a frame or three of the text). `SetVolume`, `Volume`, `Close`. Browsers start audio only after a click or key press; Ebiten resumes its context on the first input.
+
+Until the root module has a version tag, the nested module finds it through a `replace` to `..`: use it from a checkout of this repository (or a `go.work`).
+
+The example, a dialogue box with two characters:
+
+```bash
+cd ebiten && go run ./example                     # Space or click: skip, then next line
+```
+
+## Tests (package `voicetest`)
+
+`voicetest.NewRecordingSink(capacity)` is a `voice.Sink` that records every call. `Calls()` returns them, `Sounding(owner)` the notes of an owner that are still on (a test that ends a line checks it is empty), `Reset()` forgets them.
 
 ## Languages (`*.lang.json`)
 
@@ -105,6 +144,8 @@ Loading (`LoadLanguage`, `LoadVoice` from an `io.Reader`, `LoadLanguageFS`, `Loa
 
 ## Compose
 
+A `Speaker` does this for you; use `Compose` directly to render offline or to drive another sound engine.
+
 `voice.Compose(v, text, tokens)` (or `ComposeText(v, lang, text)`) turns tokens into a `Timeline`: `Notes` (on and off time, instrument, note, velocity, pan; sorted by on time), `Reveals` (from this time on, show the text up to this byte offset) and `Duration`. It is pure: the same voice and text always give the same timeline.
 
 - A beat is `1/speed` seconds. A phoneme takes `length` beats; its note sounds for the voice's `length` share of that, at `baseNote + pitch + phoneme pitch ± variation`, on the instrument of its category.
@@ -114,7 +155,7 @@ Loading (`LoadLanguage`, `LoadVoice` from an `io.Reader`, `LoadLanguageFS`, `Loa
 - The motif is two to four long soft notes on the `motif` instrument, an octave below the voice: one per clause (a single clause is split in two, more than four clauses are grouped into four). Each motif note moves from the previous one: down after a fall, up after a rise or accent (louder too), a small step otherwise.
 - `Duration` is the end of the last phoneme; a final pause does not count. The last reveal shows the whole text.
 
-To play a timeline on a `synth.Stream`, call `NoteOn` at each note's `On` and `NoteOff` at its `Off` (offs first when they share a time with ons), rendering in between; `cmd/voiceplay` does exactly that.
+To play a timeline yourself, call `NoteOn` at each note's `On` and `NoteOff` at its `Off`, offs first when they share a time with ons.
 
 ## The `Sink` (package `voice`)
 
