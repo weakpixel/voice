@@ -4,7 +4,22 @@ A Go library that turns dialogue text into musical gibberish for games. Text is 
 
 It works in any Go program, with any audio output, natively and in js/wasm, and renders offline to WAV. The core module has no dependencies. MIT licensed.
 
-**Status:** the synthesizer is built (milestone 1). Languages, voices, the parser, the composer and the `Speaker` runtime come next.
+**Status:** the synthesizer, languages, voices, the parser and the composer are built. The `Speaker` runtime and the Ebiten player come next.
+
+Hear the starter voices:
+
+```bash
+go run ./cmd/voiceplay -voice chirpy -o build/line.wav "Hello there, traveler!"
+```
+
+## Quick start: a line as a timeline
+
+```go
+v, _ := voice.Preset("soft")
+tl := voice.ComposeText(v, voice.DefaultLanguage(), "Hello there, traveler!")
+for _, n := range tl.Notes { ... }     // n.On, n.Off, n.Instrument, n.Note, n.Velocity
+for _, r := range tl.Reveals { ... }   // from r.At on, show text[:r.Offset]
+```
 
 ## Quick start: the synthesizer
 

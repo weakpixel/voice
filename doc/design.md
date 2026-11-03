@@ -8,7 +8,7 @@ The core module (`github.com/weakpixel/voice`) uses the standard library only; `
 
 | Package | Role |
 | --- | --- |
-| `voice` | `Sink`, `Owner`, `Instrument`; later languages, voices, parser, composer, `Speaker` |
+| `voice` | `Sink`, `Owner`, `Instrument`, languages, voices, starter voices, `Parse`, `Compose`; later the `Speaker` |
 | `voice/synth` | the synthesizer, implements `voice.Sink` |
 | `voice/wav` | WAV in and out |
 | `voice/cmd/voiceplay` | renders to WAV for listening |
@@ -16,6 +16,22 @@ The core module (`github.com/weakpixel/voice`) uses the standard library only; `
 ## The `Sink` seam
 
 Composing and sound meet only in `voice.Sink`. The core never sees a sample rate or an audio device, and a test can record the notes instead of hearing them. Notes are float semitones so random pitch variation is not rounded to the piano. Owners keep speakers apart: stopping one line releases only that owner's notes.
+
+## Languages and voices
+
+Both file formats are plain JSON decoded with unknown fields rejected, then validated in one pass that collects every error with its JSON path. Defaults are applied while building, so the in-memory `Language` and `Voice` never carry "unset" values. A `Language` is opaque and immutable (a trie is built from it), so `DefaultLanguage()` can be shared; a `Voice` is a plain struct because games tweak voices per character.
+
+Instruments in a voice file are `voice.InstrumentSpec`, a flat description in milliseconds. The root package cannot import `synth` (it imports the root), so `synth.PatchFromSpec` converts specs to patches, and sample names are resolved by a caller-supplied loader: the core never opens files on its own, which keeps it usable with `embed.FS`, archives and web builds alike.
+
+## Parsing
+
+A prefix tree keyed by folded runes holds both phonemes and punctuation, so one walk finds the longest symbol of either kind. Folding maps a rune to the smallest member of its `unicode.SimpleFold` orbit, so `K`, `k` and the Kelvin sign meet. Whitespace runs are collapsed into one pause before the tree is consulted. The tokens' byte spans tile the text, which is what the reveal needs and what a fuzz test checks.
+
+## Composing
+
+Composition is a pure function of voice, text and tokens. The only randomness is a PCG generator seeded with the voice seed xor an FNV-1a hash of the text, so a line always sounds the same and two lines of one character differ. Times are computed in float seconds and converted per event, so rounding does not accumulate. Golden timelines of the starter voices in `testdata/compose/` catch unintended changes (`go test -run ComposeGolden -update` rewrites them).
+
+Reveal follows the tokens, never a separate character timer: a token's text appears when it starts, so the typewriter is always in step with the sound, and punctuation shows before its pause.
 
 ## Synthesizer
 
@@ -47,9 +63,12 @@ Composing and sound meet only in `voice.Sink`. The core never sees a sample rate
 
 All cases allocate nothing. A dialogue line uses two to four voices at a time, so the synthesizer costs well under 2 % of a core even in a browser.
 
+## Known limits
+
+- `NoteOff` matches owner and pitch, not the instrument. A phoneme note at exactly the pitch of a sounding motif note would release both; with any pitch variation this does not happen. The planned `TimedSink` or the `Speaker` can carry a note id if it matters.
+
 ## Not built yet
 
-- Languages (`*.lang.json`), voices (`*.voice.json`), `Parse`, `Compose`, starter voices (milestone 2).
 - The `Speaker` runtime, `voicetest.RecordingSink`, the Ebiten player module (milestone 3).
 - Sample-accurate scheduling: notes start at the next 64-frame block. An optional `TimedSink` with time offsets can add it without changing `Sink`.
 - A SoundFont backend in a nested `sf2` module (optional).
