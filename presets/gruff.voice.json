@@ -1,0 +1,18 @@
+{
+  "version": 0,
+  "name": "gruff",
+  "baseNote": 50,
+  "variation": 0.8,
+  "velocity": 0.85,
+  "length": 0.85,
+  "speed": 10,
+  "motifVolume": 0.25,
+  "seed": 3,
+  "instruments": {
+    "vowel": {"wave": "saw", "detune": 0.12, "attackMs": 4, "decayMs": 110, "sustain": 0.3, "releaseMs": 50, "cutoff": 900, "resonance": 0.5, "gain": 0.55},
+    "sonorant": {"wave": "saw", "attackMs": 5, "decayMs": 90, "sustain": 0.2, "releaseMs": 40, "cutoff": 600, "gain": 0.55},
+    "fricative": {"wave": "noise", "attackMs": 3, "decayMs": 40, "releaseMs": 20, "cutoff": 1500, "resonance": 0.2, "gain": 0.35},
+    "plosive": {"wave": "square", "attackMs": 2, "decayMs": 35, "releaseMs": 15, "cutoff": 700, "gain": 0.5},
+    "motif": {"wave": "saw", "attackMs": 50, "decayMs": 120, "sustain": 0.8, "releaseMs": 250, "cutoff": 500, "gain": 0.7}
+  }
+}
