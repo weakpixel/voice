@@ -23,7 +23,7 @@ func TestDefaultLanguageAndPresetsLoad(t *testing.T) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
-	if _, err := Preset("loud"); err == nil || !strings.Contains(err.Error(), "soft, chirpy, gruff, divine, flow") {
+	if _, err := Preset("loud"); err == nil || !strings.Contains(err.Error(), "soft, chirpy, gruff, divine, flow, verse") {
 		t.Errorf("unknown preset: %v", err)
 	}
 	a, _ := Preset("soft")

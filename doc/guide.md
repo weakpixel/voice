@@ -89,7 +89,7 @@ Symbols must be unique across phonemes and punctuation, compared case-insensitiv
 
 ## Voices (`*.voice.json`)
 
-A voice is how one character speaks. Five starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"`, `"divine"` and `"flow"`:
+A voice is how one character speaks. Six starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"`, `"divine"`, `"flow"` and `"verse"`:
 
 | Voice | Sound |
 | --- | --- |
@@ -98,6 +98,7 @@ A voice is how one character speaks. Five starter voices are built in, `voice.Pr
 | `gruff` | low and slow, detuned filtered saw |
 | `divine` | very low and slow, orchestral: each syllable a chord (root, octave below, fifth above) of five-copy unison saws, long swells, deep in the reverb, a slow pad underneath |
 | `flow` | rhythmic, like a rapper: low punchy square blips on a 92 bpm grid of sixteenths with a light swing, over kick, snare and hi-hat after one bar of count-in |
+| `verse` | the rhythmic delivery of `flow` without a beat: 96 bpm sixteenths, accents and rests only, starting at once |
 
 ```json
 {
