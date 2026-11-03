@@ -88,7 +88,7 @@ func BenchmarkSink(b *testing.B) {
 	i := 0
 	for b.Loop() {
 		s.NoteOn(2, 0, 60, 1, 0)
-		s.NoteOff(2, 60)
+		s.NoteOff(2, 0, 60)
 		if i++; i%64 == 0 {
 			s.Read(buf) // drain the command buffer now and then
 		}

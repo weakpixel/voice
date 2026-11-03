@@ -13,6 +13,7 @@ const StealFade = MinEnvelopeTime
 // noteOn is a note waiting to start or playing on a voice.
 type noteOn struct {
 	owner          voice.Owner
+	inst           voice.Instrument // NoteOff matches it with the note
 	patch          *Patch
 	note           float32 // the played note: NoteOff and Release match it
 	layer          float32 // semitones this voice sounds away from note
@@ -165,15 +166,15 @@ func (v *voiceSlot) noteOff() {
 	v.env.noteOff()
 }
 
-// noteOff releases the notes of owner at pitch note, including one waiting
-// for a steal fade.
-func (p *pool) noteOff(owner voice.Owner, note float32) {
+// noteOff releases the notes of owner on inst at pitch note, including one
+// waiting for a steal fade.
+func (p *pool) noteOff(owner voice.Owner, inst voice.Instrument, note float32) {
 	for i := range p.voices {
 		v := &p.voices[i]
-		if v.active && v.fadeLen == 0 && !v.released && v.on.owner == owner && v.on.note == note {
+		if v.active && v.fadeLen == 0 && !v.released && v.on.owner == owner && v.on.inst == inst && v.on.note == note {
 			v.noteOff()
 		}
-		if v.hasPending && v.pending.owner == owner && v.pending.note == note {
+		if v.hasPending && v.pending.owner == owner && v.pending.inst == inst && v.pending.note == note {
 			v.pending.releaseOnStart = true
 		}
 	}

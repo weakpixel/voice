@@ -35,6 +35,10 @@ Composition is a pure function of voice, text and tokens. The only randomness is
 
 Reveal follows the tokens, never a separate character timer: a token's text appears when it starts, so the typewriter is always in step with the sound, and punctuation shows before its pause.
 
+**Rhythm.** A voice with a rhythm reuses everything above (tokens, pitch, contours, motif, the random draws in the same order) and changes only when notes start. The unit on the grid is the syllable, found from the phoneme categories alone, so every language can be rapped without new data: a vowel is a nucleus, and consonants between vowels are split so the last one leads into the next nucleus, which is how a listener hears the beat (on the vowel, with the consonant just before it). A syllable's length in steps comes from its natural length at the voice's `speed`, so dense and sparse flows are a matter of `speed` against `bpm`. Onsets borrow at most half of the shortest step (shorter with swing) before the nucleus, so a nucleus always keeps half a step. Accents are a lookup by step within the bar, not stress from the text. Rests snap to the grid; sentence ends wait for the next bar by default because rap lines are phrased in bars. The percussion is part of the timeline (a fixed note per sound on instruments after the motif), so `Speaker`, reveal, `Skip` and `Release` work unchanged. A `Clock` only moves the grid's origin to a bar line of the game's music and replaces the tempo; there is no tempo tracking within a line.
+
+**Instruments.** The `Sink` sees 13 instruments per owner: the five voice instruments and eight percussion slots. `NoteOff` names the instrument as well as the pitch, because percussion plays fixed pitches that a motif note (whole semitones from the base note) can share.
+
 ## Speaker
 
 The speaker turns a timeline into a schedule of Sink calls (offs before ons at equal times) when a line starts, then only walks two cursors per `Update`: the schedule and the reveals. That is why steady-state `Update` allocates nothing, and why the reveal depends only on accumulated time, never on the update rate. `Say` allocates (parsing reuses the speaker's token slice; composing builds a new timeline).
@@ -57,7 +61,7 @@ Notes reach the synthesizer at the next 64-frame block after `Update`, and the p
 
 **Oscillators.** Phase accumulators from 0 to 1. Saw and square use PolyBLEP, a two-sample polynomial correction at each discontinuity that removes most of the aliasing at the cost of a few multiplications. The triangle's harmonics fall off fast enough that a naive one is fine. Sine and triangle start at 0. Noise is a per-voice xorshift whose seeds come from a stream-level generator, so the same sequence of notes always renders the same samples.
 
-**Filter.** A trapezoidal (TPT) state-variable low-pass after Andrew Simper. Unlike the classic Chamberlin form it stays stable at high cutoffs and high resonance; resonance is capped internally at 0.98. Coefficients are computed once per note.
+**Filter.** A trapezoidal (TPT) state-variable filter after Andrew Simper. Unlike the classic Chamberlin form it stays stable at high cutoffs and high resonance; resonance is capped internally at 0.98. Coefficients are computed once per note. One step yields the band-pass and low-pass outputs, and the high-pass is the input minus both (the band-pass weighted by the damping), so the three types cost the same.
 
 **Layers and unison.** A chord layer is a full voice: its own envelope, filter and steal handling, so a stolen layer fades like any note. Each layer remembers the played note, so a `NoteOff` of that note ends the whole chord and the `Sink` contract is unchanged. Unison copies live inside one voice (a fixed array of seven oscillators, so no allocation), share its envelope and filter, start at random phases from the seeded generator and are mixed at 1/√n, because detuned copies add up like noise, not like one wave.
 
@@ -81,12 +85,9 @@ Notes reach the synthesizer at the next 64-frame block after `Update`, and the p
 | NoteOn + NoteOff, applied | 89 ns | | 330 ns | |
 | `Speaker.Update` at 60 Hz (a new line whenever one ends) | 64 ns | | 357 ns | |
 | `Speaker.Say`, 36 characters (20 allocations) | 8.6 µs | | 43 µs | |
+| `Speaker.Say`, 36 characters, `flow` (rhythm and percussion, 36 allocations) | 21.5 µs | | 137 µs | |
 
 All cases but `Say` allocate nothing. A dialogue line uses two to four voices at a time (up to about twelve for `divine` with its chords and overlapping releases), so the synthesizer costs well under 2 % of a core for the light voices and about 3 % native, 11 % in a browser, for the heaviest.
-
-## Known limits
-
-- `NoteOff` matches owner and pitch, not the instrument. A phoneme note at exactly the pitch of a sounding motif note would release both; with any pitch variation this does not happen. The planned `TimedSink` or the `Speaker` can carry a note id if it matters.
 
 ## Not built yet
 
@@ -94,3 +95,4 @@ All cases but `Say` allocate nothing. A dialogue line uses two to four voices at
 - Sample-accurate scheduling: notes start at the next 64-frame block. An optional `TimedSink` with time offsets can add it without changing `Sink`.
 - A SoundFont backend in a nested `sf2` module (optional).
 - Chorus, delay, FM, a reverb per speaker.
+- Sung (melodic) rhythmic lines, word stress from the text, and tempo changes within a line or tempo tracking of the game's music.

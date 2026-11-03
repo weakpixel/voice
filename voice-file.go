@@ -2,11 +2,14 @@ package voice
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"slices"
+	"strings"
 )
 
 // Voice is how one character speaks: the instruments, pitch, speed and
@@ -31,24 +34,35 @@ type Voice struct {
 
 	// Instruments are indexed by Instrument. Loading fills instruments the
 	// file leaves out with the vowel's.
-	Instruments [InstrumentCount]InstrumentSpec
+	Instruments [InstPercussion]InstrumentSpec
+
+	// Percussion are the sounds the rhythm's beat plays, sorted by name;
+	// sound i plays on instrument InstPercussion + i. At most
+	// MaxPercussion. Loading adds the built-in sounds the beat names but
+	// the file does not define.
+	Percussion []Percussion
+
+	// Rhythm puts the voice on a beat grid; nil speaks freely.
+	Rhythm *Rhythm
 }
 
 // voiceFile is the JSON form of a *.voice.json file.
 type voiceFile struct {
-	Version     *int                      `json:"version"`
-	Name        string                    `json:"name"`
-	Language    string                    `json:"language"`
-	BaseNote    *float32                  `json:"baseNote"`
-	Pitch       float32                   `json:"pitch"`
-	Variation   *float32                  `json:"variation"`
-	Velocity    *float32                  `json:"velocity"`
-	Length      *float32                  `json:"length"`
-	Speed       *float32                  `json:"speed"`
-	Pan         float32                   `json:"pan"`
-	MotifVolume *float32                  `json:"motifVolume"`
-	Seed        uint64                    `json:"seed"`
-	Instruments map[string]InstrumentSpec `json:"instruments"`
+	Version     *int                       `json:"version"`
+	Name        string                     `json:"name"`
+	Language    string                     `json:"language"`
+	BaseNote    *float32                   `json:"baseNote"`
+	Pitch       float32                    `json:"pitch"`
+	Variation   *float32                   `json:"variation"`
+	Velocity    *float32                   `json:"velocity"`
+	Length      *float32                   `json:"length"`
+	Speed       *float32                   `json:"speed"`
+	Pan         float32                    `json:"pan"`
+	MotifVolume *float32                   `json:"motifVolume"`
+	Seed        uint64                     `json:"seed"`
+	Instruments map[string]InstrumentSpec  `json:"instruments"`
+	Percussion  map[string]json.RawMessage `json:"percussion"`
+	Rhythm      *rhythmFile                `json:"rhythm"`
 }
 
 // The defaults of the optional voice file fields.
@@ -134,6 +148,11 @@ func (f *voiceFile) build() (*Voice, error) {
 		}
 		v.Instruments[i] = f.Instruments[name]
 	}
+	v.buildPercussion(&errs, f.Percussion)
+	if f.Rhythm != nil {
+		v.Rhythm = f.Rhythm.build(&errs)
+		v.addBuiltinBeatSounds()
+	}
 	v.validate(&errs, names)
 	if len(errs.errs) > 0 {
 		return nil, errors.Join(errs.errs...)
@@ -163,4 +182,33 @@ func (v *Voice) validate(errs *fieldErrors, check []string) {
 			v.Instruments[i].validate(errs, "instruments."+name)
 		}
 	}
+	v.validatePercussion(errs)
+	if v.Rhythm != nil {
+		v.Rhythm.validate(errs, v)
+	}
+}
+
+// buildPercussion loads the voice file's percussion entries, sorted by
+// name.
+func (v *Voice) buildPercussion(errs *fieldErrors, entries map[string]json.RawMessage) {
+	names := slices.Sorted(maps.Keys(entries))
+	for _, name := range names {
+		if p, ok := loadPercussion(errs, name, entries[name]); ok {
+			v.Percussion = append(v.Percussion, p)
+		}
+	}
+}
+
+// addBuiltinBeatSounds adds the built-in sounds the beat names but the
+// percussion list lacks, keeping the list sorted by name.
+func (v *Voice) addBuiltinBeatSounds() {
+	for _, t := range v.Rhythm.Beat {
+		if v.percussionIndex(t.Sound) >= 0 {
+			continue
+		}
+		if p, ok := BuiltinPercussion(t.Sound); ok {
+			v.Percussion = append(v.Percussion, p)
+		}
+	}
+	slices.SortFunc(v.Percussion, func(a, b Percussion) int { return strings.Compare(a.Name, b.Name) })
 }

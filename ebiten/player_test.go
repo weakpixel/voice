@@ -99,5 +99,8 @@ func (t teeSink) NoteOn(o voice.Owner, i voice.Instrument, n, v, p float32) {
 	t.a.NoteOn(o, i, n, v, p)
 	t.b.NoteOn(o, i, n, v, p)
 }
-func (t teeSink) NoteOff(o voice.Owner, n float32) { t.a.NoteOff(o, n); t.b.NoteOff(o, n) }
-func (t teeSink) Release(o voice.Owner)            { t.a.Release(o); t.b.Release(o) }
+func (t teeSink) NoteOff(o voice.Owner, i voice.Instrument, n float32) {
+	t.a.NoteOff(o, i, n)
+	t.b.NoteOff(o, i, n)
+}
+func (t teeSink) Release(o voice.Owner) { t.a.Release(o); t.b.Release(o) }

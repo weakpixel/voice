@@ -8,7 +8,7 @@ func TestRecordingSink(t *testing.T) {
 	s.NoteOn(1, 0, 62, 1, 0)
 	s.NoteOn(1, 0, 60, 1, 0)
 	s.NoteOn(2, 0, 60, 1, 0)
-	s.NoteOff(1, 60)
+	s.NoteOff(1, 0, 60)
 	if got := s.Sounding(1); len(got) != 1 || got[0].Note != 62 {
 		t.Errorf("owner 1 sounding %+v, want 62", got)
 	}

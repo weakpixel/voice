@@ -1,0 +1,716 @@
+{
+  "Notes": [
+    {
+      "On": 0,
+      "Off": 81521739,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 0,
+      "Off": 81521739,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 326086956,
+      "Off": 407608695,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 652173913,
+      "Off": 733695652,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 652173913,
+      "Off": 733695652,
+      "Instrument": 7,
+      "Note": 38,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 978260869,
+      "Off": 1059782608,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 978260869,
+      "Off": 1059782608,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 1304347826,
+      "Off": 1385869565,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 1630434782,
+      "Off": 1711956521,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 1630434782,
+      "Off": 1711956521,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 1956521739,
+      "Off": 2038043478,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 1956521739,
+      "Off": 2038043478,
+      "Instrument": 7,
+      "Note": 38,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 2135869565,
+      "Off": 2217391304,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.225,
+      "Pan": 0
+    },
+    {
+      "On": 2282608695,
+      "Off": 2364130434,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 2461956521,
+      "Off": 2543478261,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.225,
+      "Pan": 0
+    },
+    {
+      "On": 2554150195,
+      "Off": 2595059287,
+      "Instrument": 2,
+      "Note": 54.5377,
+      "Velocity": 0.336,
+      "Pan": 0
+    },
+    {
+      "On": 2554150195,
+      "Off": 3260869565,
+      "Instrument": 4,
+      "Note": 40,
+      "Velocity": 0.2,
+      "Pan": 0
+    },
+    {
+      "On": 2608695652,
+      "Off": 2653120882,
+      "Instrument": 0,
+      "Note": 55.91039,
+      "Velocity": 0.84000003,
+      "Pan": 0
+    },
+    {
+      "On": 2608695652,
+      "Off": 2690217391,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 2608695652,
+      "Off": 2690217391,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 2667929292,
+      "Off": 2703469476,
+      "Instrument": 1,
+      "Note": 54.753048,
+      "Velocity": 0.84000003,
+      "Pan": 0
+    },
+    {
+      "On": 2715316204,
+      "Off": 2769861660,
+      "Instrument": 1,
+      "Note": 53.109337,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 2788043478,
+      "Off": 2850370554,
+      "Instrument": 0,
+      "Note": 49.45291,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 2871146246,
+      "Off": 2918873518,
+      "Instrument": 2,
+      "Note": 51.784267,
+      "Velocity": 0.3,
+      "Pan": 0
+    },
+    {
+      "On": 2934782608,
+      "Off": 3014748023,
+      "Instrument": 0,
+      "Note": 53.790215,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 2934782608,
+      "Off": 3016304347,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 3041403161,
+      "Off": 3095948616,
+      "Instrument": 1,
+      "Note": 50.705795,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 3114130435,
+      "Off": 3224184782,
+      "Instrument": 0,
+      "Note": 54.273544,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 3260869565,
+      "Off": 3342391304,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 3260869565,
+      "Off": 3342391304,
+      "Instrument": 7,
+      "Note": 38,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 3586956521,
+      "Off": 3668478260,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 3586956521,
+      "Off": 3668478260,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 3839673913,
+      "Off": 3860838210,
+      "Instrument": 3,
+      "Note": 56.449432,
+      "Velocity": 0.9072001,
+      "Pan": 0
+    },
+    {
+      "On": 3839673913,
+      "Off": 4418478261,
+      "Instrument": 4,
+      "Note": 44,
+      "Velocity": 0.24000001,
+      "Pan": 0
+    },
+    {
+      "On": 3867892976,
+      "Off": 3901755852,
+      "Instrument": 1,
+      "Note": 54.032124,
+      "Velocity": 1,
+      "Pan": 0
+    },
+    {
+      "On": 3913043478,
+      "Off": 3999827076,
+      "Instrument": 0,
+      "Note": 55.392937,
+      "Velocity": 1,
+      "Pan": 0
+    },
+    {
+      "On": 3913043478,
+      "Off": 3994565217,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 4028754942,
+      "Off": 4076482213,
+      "Instrument": 2,
+      "Note": 52.60151,
+      "Velocity": 0.43200004,
+      "Pan": 0
+    },
+    {
+      "On": 4092391304,
+      "Off": 4147900196,
+      "Instrument": 0,
+      "Note": 55.4563,
+      "Velocity": 0.72,
+      "Pan": 0
+    },
+    {
+      "On": 4166403160,
+      "Off": 4220948616,
+      "Instrument": 1,
+      "Note": 54.204185,
+      "Velocity": 0.72,
+      "Pan": 0
+    },
+    {
+      "On": 4239130434,
+      "Off": 4313858695,
+      "Instrument": 0,
+      "Note": 55.283756,
+      "Velocity": 0.72,
+      "Pan": 0
+    },
+    {
+      "On": 4239130434,
+      "Off": 4320652173,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 4239130434,
+      "Off": 4320652173,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 4338768115,
+      "Off": 4398550724,
+      "Instrument": 1,
+      "Note": 52.550495,
+      "Velocity": 0.72,
+      "Pan": 0
+    },
+    {
+      "On": 4565217391,
+      "Off": 4646739130,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 4565217391,
+      "Off": 4646739130,
+      "Instrument": 7,
+      "Note": 38,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 4744565217,
+      "Off": 4826086956,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.225,
+      "Pan": 0
+    },
+    {
+      "On": 4891304347,
+      "Off": 4972826086,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 5070652174,
+      "Off": 5152173913,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.225,
+      "Pan": 0
+    },
+    {
+      "On": 5217391304,
+      "Off": 5297356718,
+      "Instrument": 0,
+      "Note": 54.57109,
+      "Velocity": 0.84000003,
+      "Pan": 0
+    },
+    {
+      "On": 5217391304,
+      "Off": 5298913043,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 5217391304,
+      "Off": 5298913043,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 5217391304,
+      "Off": 6195652173,
+      "Instrument": 4,
+      "Note": 51,
+      "Velocity": 0.2,
+      "Pan": 0
+    },
+    {
+      "On": 5324011856,
+      "Off": 5378557312,
+      "Instrument": 1,
+      "Note": 51.26698,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 5396739130,
+      "Off": 5506793478,
+      "Instrument": 0,
+      "Note": 53.949783,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 5543478260,
+      "Off": 5677989130,
+      "Instrument": 0,
+      "Note": 55.300934,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 5543478260,
+      "Off": 5625000000,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 5722826087,
+      "Off": 5778334979,
+      "Instrument": 0,
+      "Note": 51.553406,
+      "Velocity": 0.6,
+      "Pan": 0
+    },
+    {
+      "On": 5796837943,
+      "Off": 5851383398,
+      "Instrument": 1,
+      "Note": 54.43329,
+      "Velocity": 0.744,
+      "Pan": 0
+    },
+    {
+      "On": 5869565217,
+      "Off": 5980731225,
+      "Instrument": 0,
+      "Note": 52.259644,
+      "Velocity": 0.744,
+      "Pan": 0
+    },
+    {
+      "On": 5869565217,
+      "Off": 5951086956,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 5869565217,
+      "Off": 5951086956,
+      "Instrument": 7,
+      "Note": 38,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 6017786562,
+      "Off": 6095602766,
+      "Instrument": 2,
+      "Note": 55.943123,
+      "Velocity": 0.44640002,
+      "Pan": 0
+    },
+    {
+      "On": 6121541501,
+      "Off": 6177124505,
+      "Instrument": 3,
+      "Note": 59.64239,
+      "Velocity": 0.6696,
+      "Pan": 0
+    },
+    {
+      "On": 6195652173,
+      "Off": 6277173913,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 6195652173,
+      "Off": 6277173913,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 6521739130,
+      "Off": 6603260869,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 6847826086,
+      "Off": 6929347826,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 6847826086,
+      "Off": 6929347826,
+      "Instrument": 6,
+      "Note": 36,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 7173913043,
+      "Off": 7255434782,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 7173913043,
+      "Off": 7255434782,
+      "Instrument": 7,
+      "Note": 38,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 7353260869,
+      "Off": 7434782608,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.225,
+      "Pan": 0
+    },
+    {
+      "On": 7500000000,
+      "Off": 7581521739,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.45,
+      "Pan": 0
+    },
+    {
+      "On": 7679347826,
+      "Off": 7760869565,
+      "Instrument": 5,
+      "Note": 42,
+      "Velocity": 0.225,
+      "Pan": 0
+    }
+  ],
+  "Reveals": [
+    {
+      "At": 2554150195,
+      "Offset": 1
+    },
+    {
+      "At": 2608695652,
+      "Offset": 2
+    },
+    {
+      "At": 2667929292,
+      "Offset": 3
+    },
+    {
+      "At": 2715316204,
+      "Offset": 4
+    },
+    {
+      "At": 2788043478,
+      "Offset": 5
+    },
+    {
+      "At": 2871146246,
+      "Offset": 8
+    },
+    {
+      "At": 2934782608,
+      "Offset": 9
+    },
+    {
+      "At": 3041403161,
+      "Offset": 10
+    },
+    {
+      "At": 3114130435,
+      "Offset": 11
+    },
+    {
+      "At": 3260869565,
+      "Offset": 13
+    },
+    {
+      "At": 3839673913,
+      "Offset": 14
+    },
+    {
+      "At": 3867892976,
+      "Offset": 15
+    },
+    {
+      "At": 3913043478,
+      "Offset": 16
+    },
+    {
+      "At": 4028754942,
+      "Offset": 17
+    },
+    {
+      "At": 4092391304,
+      "Offset": 18
+    },
+    {
+      "At": 4166403160,
+      "Offset": 19
+    },
+    {
+      "At": 4239130434,
+      "Offset": 20
+    },
+    {
+      "At": 4338768115,
+      "Offset": 21
+    },
+    {
+      "At": 4418478261,
+      "Offset": 23
+    },
+    {
+      "At": 5217391304,
+      "Offset": 24
+    },
+    {
+      "At": 5324011856,
+      "Offset": 25
+    },
+    {
+      "At": 5396739130,
+      "Offset": 26
+    },
+    {
+      "At": 5543478260,
+      "Offset": 28
+    },
+    {
+      "At": 5722826087,
+      "Offset": 30
+    },
+    {
+      "At": 5796837943,
+      "Offset": 32
+    },
+    {
+      "At": 5869565217,
+      "Offset": 33
+    },
+    {
+      "At": 6017786562,
+      "Offset": 34
+    },
+    {
+      "At": 6121541501,
+      "Offset": 35
+    },
+    {
+      "At": 6195652173,
+      "Offset": 36
+    }
+  ],
+  "Duration": 7826086956,
+  "TextLen": 36
+}

@@ -12,7 +12,9 @@ func TestInstrumentString(t *testing.T) {
 		{InstFricative, "fricative"},
 		{InstPlosive, "plosive"},
 		{InstMotif, "motif"},
-		{Instrument(5), "instrument(5)"},
+		{InstPercussion, "percussion(0)"},
+		{InstPercussion + 7, "percussion(7)"},
+		{Instrument(13), "instrument(13)"},
 		{Instrument(200), "instrument(200)"},
 	}
 	for _, tt := range tests {

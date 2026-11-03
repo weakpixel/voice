@@ -60,8 +60,8 @@ func (s *RecordingSink) NoteOn(owner voice.Owner, inst voice.Instrument, note, v
 }
 
 // NoteOff implements voice.Sink.
-func (s *RecordingSink) NoteOff(owner voice.Owner, note float32) {
-	s.add(Call{Kind: NoteOff, Owner: owner, Note: note})
+func (s *RecordingSink) NoteOff(owner voice.Owner, inst voice.Instrument, note float32) {
+	s.add(Call{Kind: NoteOff, Owner: owner, Instrument: inst, Note: note})
 }
 
 // Release implements voice.Sink.
@@ -90,8 +90,9 @@ func (s *RecordingSink) Reset() {
 }
 
 // Sounding returns the NoteOn calls of owner that are still sounding: not
-// followed by a NoteOff of the same pitch (which ends every sounding note
-// of that pitch, as synth.Stream does) or a Release. A test that ends a
+// followed by a NoteOff of the same instrument and pitch (which ends every
+// sounding note of that instrument and pitch, as synth.Stream does) or a
+// Release. A test that ends a
 // line checks that it is empty.
 func (s *RecordingSink) Sounding(owner voice.Owner) []Call {
 	s.mu.Lock()
@@ -105,7 +106,7 @@ func (s *RecordingSink) Sounding(owner voice.Owner) []Call {
 		case NoteOn:
 			on = append(on, c)
 		case NoteOff:
-			on = deleteNote(on, c.Note)
+			on = deleteNote(on, c.Instrument, c.Note)
 		case Release:
 			on = on[:0]
 		}
@@ -113,10 +114,10 @@ func (s *RecordingSink) Sounding(owner voice.Owner) []Call {
 	return on
 }
 
-func deleteNote(on []Call, note float32) []Call {
+func deleteNote(on []Call, inst voice.Instrument, note float32) []Call {
 	out := on[:0]
 	for _, c := range on {
-		if c.Note != note {
+		if c.Instrument != inst || c.Note != note {
 			out = append(out, c)
 		}
 	}

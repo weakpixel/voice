@@ -65,6 +65,17 @@ func pitch(x []float32) float64 {
 	return float64(n-1) * testRate / (last - first)
 }
 
+// zeroCrossings counts the upward zero crossings of x.
+func zeroCrossings(x []float32) int {
+	n := 0
+	for i := 1; i < len(x); i++ {
+		if x[i-1] < 0 && x[i] >= 0 {
+			n++
+		}
+	}
+	return n
+}
+
 func peak(x []float32) float32 {
 	var p float32
 	for _, v := range x {

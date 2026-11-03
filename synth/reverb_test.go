@@ -109,7 +109,7 @@ func TestLayers(t *testing.T) {
 	if r := rms(chord[frames(20*time.Millisecond):]) / rms(single[frames(20*time.Millisecond):]); r < 0.7 || r > 1.4 {
 		t.Errorf("chord/single loudness %.2f, want about 1", r)
 	}
-	s.NoteOff(1, 60)
+	s.NoteOff(1, voice.InstVowel, 60)
 	render(s, 50*time.Millisecond)
 	if n := s.pool.sounding(); n != 0 {
 		t.Errorf("%d layer voices survive the note off", n)

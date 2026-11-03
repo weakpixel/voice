@@ -39,6 +39,13 @@ func PatchFromSpec(spec voice.InstrumentSpec, load SampleLoader) (Patch, error) 
 		}
 		p.Wave = Waveform(i)
 	}
+	if spec.Filter != "" {
+		i := slices.Index(FilterTypes[:], spec.Filter)
+		if i < 0 {
+			return Patch{}, fmt.Errorf("synth: unknown filter %q", spec.Filter)
+		}
+		p.Filter.Type = FilterType(i)
+	}
 	if spec.Sample != "" {
 		if load == nil {
 			return Patch{}, fmt.Errorf("synth: sample %q: no sample loader", spec.Sample)
@@ -61,17 +68,29 @@ func PatchFromSpec(spec voice.InstrumentSpec, load SampleLoader) (Patch, error) 
 	return p, nil
 }
 
-// SetVoice sets the patches of all instruments of owner from v (see
-// [PatchFromSpec] and [Stream.SetPatch]). It reports the errors of every
-// instrument together and sets nothing if any fails. Safe from any
-// goroutine; allocates.
+// SetVoice sets the patches of all instruments of owner from v: the five
+// voice instruments and its percussion sounds (see [PatchFromSpec] and
+// [Stream.SetPatch]). Percussion slots v does not use keep their patches.
+// It reports the errors of every instrument together and sets nothing if
+// any fails. Safe from any goroutine; allocates.
 func (s *Stream) SetVoice(owner voice.Owner, v *voice.Voice, load SampleLoader) error {
-	var patches [voice.InstrumentCount]Patch
+	if len(v.Percussion) > voice.MaxPercussion {
+		return fmt.Errorf("synth: %d percussion sounds, at most %d", len(v.Percussion), voice.MaxPercussion)
+	}
+	specs := v.Instruments[:]
+	for _, p := range v.Percussion {
+		specs = append(specs, p.Spec)
+	}
+	patches := make([]Patch, len(specs))
 	var errs []error
-	for i, spec := range v.Instruments {
+	for i, spec := range specs {
 		p, err := PatchFromSpec(spec, load)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w", voice.Instrument(i), err))
+			name := voice.Instrument(i).String()
+			if i >= int(voice.InstPercussion) {
+				name = "percussion " + v.Percussion[i-int(voice.InstPercussion)].Name
+			}
+			errs = append(errs, fmt.Errorf("%s: %w", name, err))
 		}
 		patches[i] = p
 	}

@@ -64,10 +64,35 @@ type Vibrato struct {
 	Delay time.Duration
 }
 
-// Filter is a resonant state-variable low-pass. Cutoff is in hertz (0 turns
-// the filter off; values above 45 % of the sample rate are lowered to it);
-// Resonance is 0 (none) to just below 1 (strong peak at the cutoff).
+// FilterType selects the output of the [Filter].
+type FilterType uint8
+
+// The filter types. All three come from the same state-variable filter, so
+// they cost the same.
+const (
+	LowPass  FilterType = iota // keeps what is below the cutoff
+	HighPass                   // keeps what is above the cutoff (hi-hats, shakers)
+	BandPass                   // keeps a band around the cutoff (snares, claps)
+)
+
+// FilterTypes lists the names of the filter types, indexed by FilterType:
+// "lowpass", "highpass", "bandpass".
+var FilterTypes = [...]string{"lowpass", "highpass", "bandpass"}
+
+// String returns the filter type's name.
+func (t FilterType) String() string {
+	if int(t) < len(FilterTypes) {
+		return FilterTypes[t]
+	}
+	return fmt.Sprintf("filtertype(%d)", t)
+}
+
+// Filter is a resonant state-variable filter, a low-pass unless Type says
+// otherwise. Cutoff is in hertz (0 turns the filter off; values above 45 %
+// of the sample rate are lowered to it); Resonance is 0 (none) to just below
+// 1 (strong peak at the cutoff).
 type Filter struct {
+	Type      FilterType
 	Cutoff    float32
 	Resonance float32
 }
@@ -158,6 +183,9 @@ func (p *Patch) Validate() error {
 	finite("vibrato.depth", p.Vibrato.Depth)
 	if finite("filter.cutoff", p.Filter.Cutoff) && p.Filter.Cutoff < 0 {
 		bad("filter.cutoff", "negative cutoff %g", p.Filter.Cutoff)
+	}
+	if p.Filter.Type > BandPass {
+		bad("filter.type", "unknown filter type %d", p.Filter.Type)
 	}
 	if finite("filter.resonance", p.Filter.Resonance) && (p.Filter.Resonance < 0 || p.Filter.Resonance >= 1) {
 		bad("filter.resonance", "%g is outside 0 to below 1", p.Filter.Resonance)

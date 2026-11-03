@@ -14,6 +14,11 @@ type SayOptions struct {
 	Speed float32
 	// Instant shows all text at once and plays the motif only.
 	Instant bool
+	// Clock and MuteBeat time a voice with a rhythm to the game's music;
+	// see [ComposeOptions]. While a Clock is set, Speed is ignored, so the
+	// line keeps the music's tempo.
+	Clock    *Clock
+	MuteBeat bool
 }
 
 // EventKind is what happened to a line.
@@ -99,7 +104,7 @@ func (s *Speaker) Say(v *Voice, text string, opts SayOptions) {
 		lang = DefaultLanguage()
 	}
 	s.tokens = AppendParse(s.tokens[:0], lang, text)
-	s.tl = Compose(v, text, s.tokens)
+	s.tl = ComposeWith(v, text, s.tokens, ComposeOptions{Clock: opts.Clock, MuteBeat: opts.MuteBeat})
 	s.schedule = s.schedule[:0]
 	for _, n := range s.tl.Notes {
 		if opts.Instant && n.Instrument != InstMotif {
@@ -117,7 +122,7 @@ func (s *Speaker) Say(v *Voice, text string, opts SayOptions) {
 	})
 	s.next, s.reveal, s.t, s.revealed = 0, 0, 0, 0
 	s.speed = 1
-	if opts.Speed > 0 {
+	if opts.Speed > 0 && opts.Clock == nil {
 		s.speed = float64(opts.Speed)
 	}
 	if opts.Instant {
@@ -166,7 +171,7 @@ func (s *Speaker) send() {
 		if e.on {
 			s.sink.NoteOn(s.owner, e.note.Instrument, e.note.Note, e.note.Velocity, e.note.Pan)
 		} else {
-			s.sink.NoteOff(s.owner, e.note.Note)
+			s.sink.NoteOff(s.owner, e.note.Instrument, e.note.Note)
 		}
 	}
 	for ; s.reveal < len(s.tl.Reveals) && s.tl.Reveals[s.reveal].At <= s.t; s.reveal++ {

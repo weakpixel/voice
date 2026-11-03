@@ -39,10 +39,29 @@ func ComposeText(v *Voice, lang *Language, text string) Timeline {
 	return Compose(v, text, Parse(lang, text))
 }
 
-// Compose turns the parsed tokens of text into a timeline for voice v. It
-// is pure: the same voice, text and tokens always give the same timeline,
-// because its randomness comes from a generator seeded with v.Seed xor a
-// hash of the text.
+// ComposeOptions tune how [ComposeWith] times a line of a voice with a
+// [Rhythm]. They do nothing for a voice without one.
+type ComposeOptions struct {
+	// Clock ties the line to the game's music: its tempo replaces the
+	// voice's and the first syllable lands on the music's next bar line
+	// (after the count-in). Nil keeps the voice's own tempo and starts at
+	// once.
+	Clock *Clock
+	// MuteBeat leaves out the voice's percussion, for example when the
+	// game's music already has a beat.
+	MuteBeat bool
+}
+
+// Compose turns the parsed tokens of text into a timeline for voice v; it
+// is ComposeWith without options.
+func Compose(v *Voice, text string, tokens []Phoneme) Timeline {
+	return ComposeWith(v, text, tokens, ComposeOptions{})
+}
+
+// ComposeWith turns the parsed tokens of text into a timeline for voice v.
+// It is pure: the same voice, text, tokens and options always give the same
+// timeline, because its randomness comes from a generator seeded with
+// v.Seed xor a hash of the text.
 //
 // Each phoneme gets a slot of Length beats (a beat is 1/v.Speed seconds)
 // and a note on its category's instrument for v.Length of the slot, at
@@ -50,15 +69,22 @@ func ComposeText(v *Voice, lang *Language, text string) Timeline {
 // v.Variation. Pauses add silence. The text of a token is revealed when it
 // starts. The end of each clause follows its punctuation's contour, and
 // when v.MotifVolume is above 0 a motif of two to four notes, one per
-// clause, plays under the line. Out-of-range voice fields are clamped.
-func Compose(v *Voice, text string, tokens []Phoneme) Timeline {
+// clause, plays under the line. A voice with a Rhythm places its syllables
+// on a beat grid instead and adds its percussion (see the guide's rhythm
+// section). Out-of-range voice fields are clamped; beat patterns that do
+// not fit the rhythm are left out.
+func ComposeWith(v *Voice, text string, tokens []Phoneme, opts ComposeOptions) Timeline {
 	c := composer{
 		v:    v,
 		rng:  rand.New(rand.NewPCG(v.Seed^hashText(text), 0x9e3779b97f4a7c15)),
 		beat: 1 / float64(clampF(v.Speed, 1, 60)),
 	}
 	c.clauses = findClauses(tokens)
-	c.phonemes(tokens)
+	if v.Rhythm != nil {
+		c.rhythmic(tokens, opts)
+	} else {
+		c.phonemes(tokens)
+	}
 	c.motif()
 	slices.SortStableFunc(c.tl.Notes, func(a, b Note) int { return cmpDur(a.On, b.On) })
 	c.tl.TextLen = len(text)
@@ -146,11 +172,7 @@ const (
 )
 
 func (c *composer) phonemes(tokens []Phoneme) {
-	v := c.v
-	base := clampF(v.BaseNote, 24, 108) + clampF(v.Pitch, -24, 24)
-	variation := clampF(v.Variation, 0, 12)
-	gate := float64(clampF(v.Length, 0.05, 1))
-	pan := clampF(v.Pan, -1, 1)
+	gate := float64(clampF(c.v.Length, 0.05, 1))
 	t := 0.0
 	ci := 0
 	for i, tok := range tokens {
@@ -166,27 +188,43 @@ func (c *composer) phonemes(tokens []Phoneme) {
 			if i == cl.first {
 				cl.start = t
 			}
-			pitch := base + tok.Pitch + variation*(2*c.rng.Float32()-1)
-			vel := clampF(v.Velocity, 0, 1) * tok.Velocity
-			if cl.contour == ContourAccent {
-				pitch += accentPitch
-				vel *= accentVelocity
-			}
-			if shift, ok := contourShift[cl.contour]; ok {
-				if k := c.fromEnd(tokens, i, cl); k < 3 {
-					pitch += shift[2-k]
-				}
-			}
+			pitch, vel := c.tone(tokens, i, cl)
 			slot := c.beat * float64(tok.Length)
-			c.tl.Notes = append(c.tl.Notes, Note{
-				On: seconds(t), Off: seconds(t + slot*gate), Instrument: tok.Category.Instrument(),
-				Note: pitch, Velocity: clampF(vel, 0, 1), Pan: pan,
-			})
+			c.note(tok, t, slot*gate, pitch, vel)
 			t += slot
 			cl.end = t
 			c.tl.Duration = seconds(t)
 		}
 	}
+}
+
+// tone returns the pitch and velocity of phoneme token i of clause cl: the
+// voice's base, the phoneme's pitch and loudness, a random offset within
+// the variation, and the clause's contour. It draws one random number, so
+// the order of calls decides the line.
+func (c *composer) tone(tokens []Phoneme, i int, cl *clause) (pitch, vel float32) {
+	v, tok := c.v, &tokens[i]
+	base := clampF(v.BaseNote, 24, 108) + clampF(v.Pitch, -24, 24)
+	pitch = base + tok.Pitch + clampF(v.Variation, 0, 12)*(2*c.rng.Float32()-1)
+	vel = clampF(v.Velocity, 0, 1) * tok.Velocity
+	if cl.contour == ContourAccent {
+		pitch += accentPitch
+		vel *= accentVelocity
+	}
+	if shift, ok := contourShift[cl.contour]; ok {
+		if k := c.fromEnd(tokens, i, cl); k < 3 {
+			pitch += shift[2-k]
+		}
+	}
+	return pitch, vel
+}
+
+// note adds the note of phoneme tok from t for length seconds.
+func (c *composer) note(tok Phoneme, t, length float64, pitch, vel float32) {
+	c.tl.Notes = append(c.tl.Notes, Note{
+		On: seconds(t), Off: seconds(t + length), Instrument: tok.Category.Instrument(),
+		Note: pitch, Velocity: clampF(vel, 0, 1), Pan: clampF(c.v.Pan, -1, 1),
+	})
 }
 
 // fromEnd counts the phonemes after token i in its clause.

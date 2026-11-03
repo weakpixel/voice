@@ -271,15 +271,20 @@ func TestSpeakerEmptyLine(t *testing.T) {
 }
 
 func TestSpeakerUpdateAllocs(t *testing.T) {
-	sink := voicetest.NewRecordingSink(10000)
-	s := voice.NewSpeaker(sink, 1)
-	v := soft(t)
-	s.Say(v, line+" "+line+" "+line, voice.SayOptions{})
-	if n := testing.AllocsPerRun(200, func() { s.Update(time.Second / 144) }); n != 0 {
-		t.Errorf("Update: %g allocs per run", n)
-	}
-	if s.Done() {
-		t.Error("line finished during the alloc test; make it longer")
+	for _, name := range []string{"soft", "flow"} { // flow: rhythm and percussion
+		sink := voicetest.NewRecordingSink(10000)
+		s := voice.NewSpeaker(sink, 1)
+		v, err := voice.Preset(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.Say(v, line+" "+line+" "+line, voice.SayOptions{})
+		if n := testing.AllocsPerRun(200, func() { s.Update(time.Second / 144) }); n != 0 {
+			t.Errorf("%s: Update: %g allocs per run", name, n)
+		}
+		if s.Done() {
+			t.Errorf("%s: line finished during the alloc test; make it longer", name)
+		}
 	}
 }
 
@@ -307,5 +312,62 @@ func BenchmarkSay(b *testing.B) {
 type nopSink struct{}
 
 func (nopSink) NoteOn(voice.Owner, voice.Instrument, float32, float32, float32) {}
-func (nopSink) NoteOff(voice.Owner, float32)                                    {}
+func (nopSink) NoteOff(voice.Owner, voice.Instrument, float32)                  {}
 func (nopSink) Release(voice.Owner)                                             {}
+
+func TestSpeakerRhythm(t *testing.T) {
+	v, err := voice.Preset("flow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"skip", "stop"} {
+		sink := voicetest.NewRecordingSink(0)
+		s := voice.NewSpeaker(sink, 1)
+		s.Say(v, line, voice.SayOptions{})
+		runFor(s, 3*time.Second) // past the count-in: voice and beat sound
+		if action == "skip" {
+			s.Skip()
+		} else {
+			s.Stop()
+		}
+		if n := sink.Sounding(1); len(n) != 0 {
+			t.Errorf("%s: %d notes still sounding", action, len(n))
+		}
+		percussion := false
+		for _, c := range sink.Calls() {
+			percussion = percussion || c.Kind == voicetest.NoteOn && c.Instrument >= voice.InstPercussion
+		}
+		if !percussion {
+			t.Errorf("%s: no percussion played", action)
+		}
+	}
+	// A clock keeps the music's tempo: Speed is ignored.
+	duration := func(opts voice.SayOptions) time.Duration {
+		s := voice.NewSpeaker(voicetest.NewRecordingSink(0), 1)
+		s.Say(v, line, opts)
+		smp := runAt(s, 100, 60*time.Second)
+		return smp[len(smp)-1].at
+	}
+	clock := &voice.Clock{BPM: 92}
+	if a, b := duration(voice.SayOptions{Clock: clock}), duration(voice.SayOptions{Clock: clock, Speed: 2}); a != b {
+		t.Errorf("with a clock, speed 2 took %v, normal %v", b, a)
+	}
+}
+
+func runFor(s *voice.Speaker, d time.Duration) {
+	for t := time.Duration(0); t < d; t += time.Second / 60 {
+		s.Update(time.Second / 60)
+	}
+}
+
+func BenchmarkSayRhythm(b *testing.B) {
+	v, err := voice.Preset("flow")
+	if err != nil {
+		b.Fatal(err)
+	}
+	s := voice.NewSpeaker(nopSink{}, 1)
+	b.ReportAllocs()
+	for b.Loop() {
+		s.Say(v, line, voice.SayOptions{})
+	}
+}

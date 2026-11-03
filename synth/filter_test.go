@@ -2,6 +2,7 @@ package synth
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 )
@@ -35,5 +36,31 @@ func TestFilterStableAtHighCutoff(t *testing.T) {
 		if math.IsNaN(float64(v)) || math.Abs(float64(v)) > 1 {
 			t.Fatalf("frame %d: %g", i, v)
 		}
+	}
+}
+
+func TestFilterTypes(t *testing.T) {
+	level := func(note float32, f Filter) float64 {
+		x := playNote(t, Patch{Filter: f, Gain: 0.1, Env: Envelope{Sustain: 1}}, note, 300*time.Millisecond)
+		return rms(x[frames(50*time.Millisecond):])
+	}
+	db := func(a, b float64) float64 { return 20 * math.Log10(a/b) }
+	high := Filter{Type: HighPass, Cutoff: 1760}
+	if d := db(level(45, high), level(45, Filter{})); d > -40 {
+		t.Errorf("high-pass, 4 octaves below the cutoff: %.1f dB, want below -40 dB", d)
+	}
+	if d := db(level(117, high), level(117, Filter{})); math.Abs(d) > 1 {
+		t.Errorf("high-pass, 2 octaves above the cutoff: %.1f dB, want about 0 dB", d)
+	}
+	band := Filter{Type: BandPass, Cutoff: 880}
+	center := level(81, band)
+	for _, note := range []float32{45, 117} {
+		if d := db(level(note, band), center); d > -12 {
+			t.Errorf("band-pass, 3 octaves from the center (note %g): %.1f dB below the center, want below -12 dB", note, d)
+		}
+	}
+	bad := Patch{Filter: Filter{Type: 3}}
+	if err := bad.Validate(); err == nil || !strings.Contains(err.Error(), "filter.type") {
+		t.Errorf("unknown filter type: %v", err)
 	}
 }

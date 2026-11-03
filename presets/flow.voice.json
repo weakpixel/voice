@@ -1,0 +1,30 @@
+{
+  "version": 0,
+  "name": "flow",
+  "baseNote": 52,
+  "variation": 0.6,
+  "velocity": 0.6,
+  "length": 0.75,
+  "speed": 11,
+  "motifVolume": 0.2,
+  "seed": 5,
+  "instruments": {
+    "vowel": {"reverb": 0.08, "wave": "square", "pulseWidth": 0.35, "glideFrom": -2, "glideMs": 15, "attackMs": 3, "decayMs": 90, "sustain": 0.25, "releaseMs": 30, "cutoff": 1800, "resonance": 0.3, "gain": 0.55},
+    "sonorant": {"reverb": 0.08, "wave": "saw", "attackMs": 4, "decayMs": 70, "sustain": 0.2, "releaseMs": 30, "cutoff": 900, "gain": 0.5},
+    "fricative": {"reverb": 0.08, "wave": "noise", "filter": "highpass", "cutoff": 3000, "attackMs": 2, "decayMs": 30, "releaseMs": 15, "gain": 0.3},
+    "plosive": {"reverb": 0.08, "wave": "square", "attackMs": 2, "decayMs": 25, "releaseMs": 10, "cutoff": 1200, "gain": 0.5},
+    "motif": {"wave": "saw", "attackMs": 10, "decayMs": 200, "sustain": 0.6, "releaseMs": 120, "cutoff": 400, "resonance": 0.3, "gain": 0.9}
+  },
+  "rhythm": {
+    "bpm": 92,
+    "division": 4,
+    "swing": 0.1,
+    "countIn": 1,
+    "beatVolume": 0.45,
+    "beat": {
+      "kick": "x.....x...x.....",
+      "snare": "....x.......x...",
+      "hat": "x.x.x.x.x.x.x-x-"
+    }
+  }
+}
