@@ -9,9 +9,18 @@ import (
 
 // benchStream returns a stream with n voices held on a mix of patches.
 func benchStream(b *testing.B, n int, filter bool) *Stream {
+	return benchStreamWith(b, n, filter, Patch{})
+}
+
+// benchStreamWith holds n voices; extra's Reverb, Unison and Spread are
+// copied into every patch.
+func benchStreamWith(b *testing.B, n int, filter bool, extra Patch) *Stream {
 	s := newTestStream(b, DefaultVoices)
 	for inst := range voice.InstrumentCount {
-		p := Patch{Wave: Waveform(inst % 5), Detune: 0.1, Env: Envelope{Sustain: 1}}
+		p := Patch{Wave: Waveform(inst % 5), Detune: 0.1, Env: Envelope{Sustain: 1}, Reverb: extra.Reverb}
+		if p.Wave != Noise {
+			p.Unison, p.Spread = extra.Unison, extra.Spread
+		}
 		if filter {
 			p.Filter = Filter{Cutoff: 2000, Resonance: 0.3}
 		}
@@ -33,6 +42,31 @@ func BenchmarkRead(b *testing.B) {
 	}{{"voices=0", 0, false}, {"voices=4", 4, false}, {"voices=8+filter", 8, true}, {"voices=24+filter", 24, true}} {
 		b.Run(c.name, func(b *testing.B) {
 			s := benchStream(b, c.voices, c.filter)
+			buf := make([]byte, 8*1024)
+			b.ReportAllocs()
+			for b.Loop() {
+				s.Read(buf)
+			}
+			per := b.Elapsed() / time.Duration(b.N)
+			b.ReportMetric(100*per.Seconds()/(1024.0/testRate), "rt%")
+		})
+	}
+}
+
+// BenchmarkReadEffects is BenchmarkRead with the reverb running and
+// unison voices.
+func BenchmarkReadEffects(b *testing.B) {
+	for _, c := range []struct {
+		name   string
+		voices int
+		extra  Patch
+	}{
+		{"voices=4+reverb", 4, Patch{Reverb: 0.5}},
+		{"voices=24+filter+reverb", 24, Patch{Reverb: 0.5}},
+		{"voices=12+filter+reverb+unison5", 12, Patch{Reverb: 0.5, Unison: 5, Spread: 0.3}},
+	} {
+		b.Run(c.name, func(b *testing.B) {
+			s := benchStreamWith(b, c.voices, true, c.extra)
 			buf := make([]byte, 8*1024)
 			b.ReportAllocs()
 			for b.Loop() {

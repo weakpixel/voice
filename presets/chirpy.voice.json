@@ -9,10 +9,10 @@
   "motifVolume": 0.2,
   "seed": 2,
   "instruments": {
-    "vowel": {"wave": "square", "pulseWidth": 0.25, "glideFrom": 4, "glideMs": 20, "attackMs": 2, "decayMs": 50, "releaseMs": 20, "cutoff": 5000, "gain": 0.4},
-    "sonorant": {"wave": "triangle", "glideFrom": 3, "glideMs": 15, "attackMs": 3, "decayMs": 45, "releaseMs": 20},
-    "fricative": {"wave": "noise", "attackMs": 2, "decayMs": 20, "releaseMs": 10, "cutoff": 7000, "gain": 0.25},
-    "plosive": {"wave": "sine", "glideFrom": 7, "glideMs": 10, "attackMs": 2, "decayMs": 25, "releaseMs": 10, "gain": 0.8},
-    "motif": {"wave": "triangle", "vibratoRate": 6, "vibratoDepth": 0.2, "vibratoDelayMs": 80, "attackMs": 30, "decayMs": 80, "sustain": 0.7, "releaseMs": 150, "gain": 0.7}
+    "vowel": {"reverb": 0.1, "wave": "square", "pulseWidth": 0.25, "glideFrom": 4, "glideMs": 20, "attackMs": 2, "decayMs": 50, "releaseMs": 20, "cutoff": 5000, "gain": 0.4},
+    "sonorant": {"reverb": 0.1, "wave": "triangle", "glideFrom": 3, "glideMs": 15, "attackMs": 3, "decayMs": 45, "releaseMs": 20},
+    "fricative": {"reverb": 0.1, "wave": "noise", "attackMs": 2, "decayMs": 20, "releaseMs": 10, "cutoff": 7000, "gain": 0.25},
+    "plosive": {"reverb": 0.1, "wave": "sine", "glideFrom": 7, "glideMs": 10, "attackMs": 2, "decayMs": 25, "releaseMs": 10, "gain": 0.8},
+    "motif": {"reverb": 0.1, "wave": "triangle", "vibratoRate": 6, "vibratoDepth": 0.2, "vibratoDelayMs": 80, "attackMs": 30, "decayMs": 80, "sustain": 0.7, "releaseMs": 150, "gain": 0.7}
   }
 }

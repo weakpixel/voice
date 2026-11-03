@@ -89,13 +89,14 @@ Symbols must be unique across phonemes and punctuation, compared case-insensitiv
 
 ## Voices (`*.voice.json`)
 
-A voice is how one character speaks. Three starter voices are built in, `voice.Preset("soft")`, `"chirpy"` and `"gruff"`:
+A voice is how one character speaks. Four starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"` and `"divine"`:
 
 | Voice | Sound |
 | --- | --- |
 | `soft` | mid pitch, triangle and sine blips, calm speed |
 | `chirpy` | high and fast, square blips that glide into each note, wide pitch variation |
 | `gruff` | low and slow, detuned filtered saw |
+| `divine` | very low and slow, orchestral: each syllable a chord (root, octave below, fifth above) of five-copy unison saws, long swells, deep in the reverb, a slow pad underneath |
 
 ```json
 {
@@ -134,7 +135,7 @@ A voice is how one character speaks. Three starter voices are built in, `voice.P
 | `seed` | mixed with a hash of the text; change it for a different melody of the same lines |
 | `instruments` | `vowel` (required), `sonorant`, `fricative`, `plosive`, `motif`; missing ones play the vowel's sound |
 
-An instrument has the fields of a [synth patch](#patch), with times in milliseconds: `wave` (`sine` default, `triangle`, `square`, `saw`, `noise`), `pulseWidth`, `detune`, `attackMs`, `decayMs`, `sustain`, `releaseMs`, `glideFrom`, `glideMs`, `vibratoRate`, `vibratoDepth`, `vibratoDelayMs`, `cutoff`, `resonance`, `gain`. Or it is a sample: `sample` (a name your loader resolves), `root` (default 60), `loop`, `loopStart`, `loopEnd`, plus the envelope, glide, vibrato, filter and gain fields. A wave and a sample together are an error.
+An instrument has the fields of a [synth patch](#patch), with times in milliseconds: `wave` (`sine` default, `triangle`, `square`, `saw`, `noise`), `pulseWidth`, `detune`, `attackMs`, `decayMs`, `sustain`, `releaseMs`, `glideFrom`, `glideMs`, `vibratoRate`, `vibratoDepth`, `vibratoDelayMs`, `cutoff`, `resonance`, `gain`, `reverb`, `layers`, `unison`, `spread`. Or it is a sample: `sample` (a name your loader resolves), `root` (default 60), `loop`, `loopStart`, `loopEnd`, plus the envelope, glide, vibrato, filter, gain, reverb and layers fields (not unison). A wave and a sample together are an error.
 
 Loading (`LoadLanguage`, `LoadVoice` from an `io.Reader`, `LoadLanguageFS`, `LoadVoiceFS` from an `fs.FS`) reports malformed JSON and unknown fields on their own; otherwise all validation errors together, each with its JSON path, for example `voice: voice: instruments.vowel.sustain: 2 is outside 0 to 1`. A loaded `Voice` is a plain struct you may change; `Voice.Validate` checks it again.
 
@@ -176,7 +177,7 @@ To play a timeline yourself, call `NoteOn` at each note's `On` and `NoteOff` at 
 s, err := synth.NewStream(synth.StreamConfig{
 	SampleRate: 48000,              // 16000 to 192000, required
 	Format:     synth.FormatFloat32, // or synth.FormatInt16
-	Voices:     24,                  // pool size, 0 means 24
+	Voices:     32,                  // pool size, 0 means 32
 })
 ```
 
@@ -187,6 +188,7 @@ s, err := synth.NewStream(synth.StreamConfig{
 - `SetPatch(owner, inst, patch)` sets the sound of one instrument of one owner. It returns the patch's validation errors (all of them) and sets nothing if the patch is invalid. Notes already sounding keep their old patch. A note on an instrument without a patch is ignored.
 - `SetVoice(owner, v, load)` sets all five instruments of a voice at once (`synth.PatchFromSpec` for each); `load` resolves sample names and may be nil when the voice uses none. It reports every instrument's errors together and sets nothing on error.
 - `SetGain(g)` sets the master gain (1 by default). The output is clipped to -1 to 1.
+- `SetReverb(synth.Reverb{Size, Damping, Width})` sets the stream's one reverb (all fields 0 to 1; `synth.DefaultReverb` is Size 0.75, Damping 0.4, Width 1). Every patch sends into it with its own `Reverb` level, so one stream is one room for all speakers. A reverb that receives nothing and has died away costs nothing.
 
 **Threading.** `Read` and `Render` belong to the audio player's goroutine; never call them concurrently. `NoteOn`, `NoteOff`, `Release`, `SetPatch` and `SetGain` are safe from any goroutine. They take effect at the start of the next block of `synth.BlockFrames` (64) frames, 1.3 ms at 48 kHz. The latency you hear is the player's buffer plus one block; keep the player buffer small (50 ms works).
 
@@ -207,6 +209,9 @@ A patch is an oscillator, or a sample when `Sample` is set, followed by the filt
 | `Vibrato` | pitch sine of `Rate` Hz and `Depth` semitones (peak), starting `Delay` after the note on |
 | `Filter` | resonant low-pass: `Cutoff` in Hz (0 is off, at most 45 % of the sample rate), `Resonance` 0 to below 1 |
 | `Gain` | output level; 0 means 1 |
+| `Reverb` | send into the stream's reverb, 0 (dry, the default) to 1 |
+| `Layers` | semitone offsets played together for each note, like a chord: `[0, -12, 7]` is the note, an octave below and a fifth above. Each layer takes a voice; the velocity is scaled by 1/√n so a chord is about as loud as one note. `NoteOff` and `Release` end all layers. Empty means `[0]`; at most 4 |
+| `Unison`, `Spread` | `Unison` copies of the oscillator (up to 7) spread evenly across `Spread` semitones in total, for the sound of a section or choir instead of one instrument. 0 and 1 mean one oscillator; oscillators only |
 
 The envelope is linear. Attack and release (and the decay, when the sustain is below 1) last at least `synth.MinEnvelopeTime` (2 ms), so notes never click. A `Sustain` of 0 ends the note after the decay without a note off, which suits blips. A note off during the attack takes effect when the attack ends: every note reaches its peak, so even a note on and off in the same block is heard.
 

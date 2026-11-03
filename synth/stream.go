@@ -25,7 +25,7 @@ const (
 const (
 	MinSampleRate = 16000
 	MaxSampleRate = 192000
-	DefaultVoices = 24
+	DefaultVoices = 32
 	// BlockFrames is the render block. Sink calls are applied at the start
 	// of a block, and glide and vibrato are updated once per block.
 	BlockFrames = 64
@@ -62,6 +62,8 @@ type Stream struct {
 	gain    float32
 	left    [BlockFrames]float32
 	right   [BlockFrames]float32
+	bus     [BlockFrames]float32 // reverb sends of the block
+	reverb  *reverb
 	pos     int // next unread frame of left/right; BlockFrames when used up
 }
 
@@ -73,6 +75,7 @@ const (
 	cmdRelease
 	cmdPatch
 	cmdGain
+	cmdReverb
 )
 
 type command struct {
@@ -83,6 +86,7 @@ type command struct {
 	velocity float32 // also the gain of cmdGain
 	pan      float32
 	patch    *Patch
+	reverb   Reverb
 }
 
 // NewStream returns a silent stream with no patches. It reports every
@@ -120,6 +124,7 @@ func NewStream(cfg StreamConfig) (*Stream, error) {
 		pool:       newPool(voices, cfg.SampleRate),
 		patches:    make(map[voice.Owner]*[voice.InstrumentCount]*Patch),
 		gain:       1,
+		reverb:     newReverb(cfg.SampleRate),
 		pos:        BlockFrames,
 	}, nil
 }
@@ -144,6 +149,7 @@ func (s *Stream) SetPatch(owner voice.Owner, inst voice.Instrument, p Patch) err
 	}
 	cp := new(Patch)
 	*cp = p
+	cp.Layers = append([]float32(nil), p.Layers...) // the caller may reuse its slice
 	s.push(command{kind: cmdPatch, owner: owner, inst: inst, patch: cp})
 	return nil
 }
@@ -152,6 +158,17 @@ func (s *Stream) SetPatch(owner voice.Owner, inst voice.Instrument, p Patch) err
 // clipped to -1 to 1. Safe from any goroutine.
 func (s *Stream) SetGain(gain float32) {
 	s.push(command{kind: cmdGain, velocity: gain})
+}
+
+// SetReverb sets the stream's reverb (DefaultReverb at first). Patches
+// send into it with Patch.Reverb. It returns an error, and changes
+// nothing, for a field outside 0 to 1. Safe from any goroutine.
+func (s *Stream) SetReverb(r Reverb) error {
+	if err := r.validate(); err != nil {
+		return err
+	}
+	s.push(command{kind: cmdReverb, reverb: r})
+	return nil
 }
 
 // NoteOn implements voice.Sink. A note for an instrument without a patch is
@@ -238,7 +255,9 @@ func (s *Stream) renderBlock() {
 
 	clear(s.left[:])
 	clear(s.right[:])
-	s.pool.render(s.left[:], s.right[:])
+	clear(s.bus[:])
+	s.pool.render(s.left[:], s.right[:], s.bus[:])
+	s.reverb.process(s.bus[:], s.left[:], s.right[:])
 	for i := range s.left {
 		s.left[i] = min(max(s.left[i]*s.gain, -1), 1)
 		s.right[i] = min(max(s.right[i]*s.gain, -1), 1)
@@ -267,6 +286,8 @@ func (s *Stream) apply(c *command) {
 		tbl[c.inst] = c.patch
 	case cmdGain:
 		s.gain = c.velocity
+	case cmdReverb:
+		s.reverb.set(c.reverb)
 	}
 }
 

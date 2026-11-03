@@ -1,0 +1,18 @@
+{
+  "version": 0,
+  "name": "divine",
+  "baseNote": 45,
+  "variation": 0.3,
+  "velocity": 0.9,
+  "length": 1,
+  "speed": 5,
+  "motifVolume": 0.55,
+  "seed": 4,
+  "instruments": {
+    "vowel": {"wave": "saw", "unison": 5, "spread": 0.25, "layers": [0, -12, 7], "attackMs": 70, "decayMs": 250, "sustain": 0.7, "releaseMs": 500, "cutoff": 1400, "resonance": 0.2, "vibratoRate": 4.5, "vibratoDepth": 0.1, "vibratoDelayMs": 150, "reverb": 0.6, "gain": 0.25},
+    "sonorant": {"wave": "saw", "unison": 3, "spread": 0.2, "layers": [0, -12], "attackMs": 80, "decayMs": 220, "sustain": 0.6, "releaseMs": 450, "cutoff": 900, "reverb": 0.6, "gain": 0.22},
+    "fricative": {"wave": "noise", "attackMs": 40, "decayMs": 160, "releaseMs": 250, "cutoff": 1100, "resonance": 0.4, "reverb": 0.7, "gain": 0.15},
+    "plosive": {"wave": "triangle", "layers": [0, -12], "attackMs": 8, "decayMs": 140, "releaseMs": 200, "cutoff": 600, "reverb": 0.6, "gain": 0.3},
+    "motif": {"wave": "saw", "unison": 5, "spread": 0.3, "layers": [0, 7], "attackMs": 500, "decayMs": 600, "sustain": 0.9, "releaseMs": 1200, "cutoff": 700, "vibratoRate": 3, "vibratoDepth": 0.06, "reverb": 0.8, "gain": 0.25}
+  }
+}

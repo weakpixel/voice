@@ -14,7 +14,8 @@ const StealFade = MinEnvelopeTime
 type noteOn struct {
 	owner          voice.Owner
 	patch          *Patch
-	note           float32
+	note           float32 // the played note: NoteOff and Release match it
+	layer          float32 // semitones this voice sounds away from note
 	velocity       float32
 	pan            float32
 	releaseOnStart bool // a note off arrived before the note could start
@@ -29,9 +30,15 @@ type voiceSlot struct {
 	on       noteOn
 	gainL    float32 // velocity, patch gain and pan combined
 	gainR    float32
-	elapsed  int // frames since the start, for glide and vibrato
+	send     float32 // velocity, patch gain and reverb send combined
+	elapsed  int     // frames since the start, for glide and vibrato
 	env      envelope
-	osc1     oscillator
+	// uni are the unison copies of the main oscillator (uni[:unison]),
+	// detuned by uniRatio; osc2 is the Detune oscillator.
+	uni      [MaxUnison]oscillator
+	uniRatio [MaxUnison]float64
+	unison   int
+	uniGain  float32 // 1/sqrt(unison): copies add up incoherently
 	osc2     oscillator
 	detuned  bool
 	sample   samplePlayer
@@ -61,10 +68,24 @@ func newPool(n, rate int) pool {
 	}
 }
 
-// noteOn starts n on a free voice, or steals one: the oldest releasing
+// noteOn starts n with every layer of its patch.
+func (p *pool) noteOn(n noteOn) {
+	layers := n.patch.Layers
+	if len(layers) == 0 {
+		p.startVoice(n)
+		return
+	}
+	n.velocity /= float32(math.Sqrt(float64(len(layers))))
+	for _, l := range layers {
+		n.layer = l
+		p.startVoice(n)
+	}
+}
+
+// startVoice starts n on a free voice, or steals one: the oldest releasing
 // voice, else the oldest sounding one. The stolen voice fades out over
 // StealFade and the note starts after it.
-func (p *pool) noteOn(n noteOn) {
+func (p *pool) startVoice(n noteOn) {
 	victim := -1
 	victimRank := 0
 	for i := range p.voices {
@@ -102,11 +123,25 @@ func (p *pool) start(v *voiceSlot, n noteOn) {
 	a := (float64(min(max(n.pan, -1), 1)) + 1) * math.Pi / 4
 	g := min(max(n.velocity, 0), 1) * pt.gain()
 	v.gainL, v.gainR = g*float32(math.Cos(a)), g*float32(math.Sin(a))
+	v.send = g * pt.Reverb
 	v.env.start(pt.Env, p.rate)
 	if pt.Sample != nil {
 		v.sample.init(pt.Sample, p.fadeFrames)
 	} else {
-		v.osc1.init(pt.Wave, pt.pulseWidth(), p.nextSeed())
+		v.unison = pt.unison()
+		v.uniGain = 1 / float32(math.Sqrt(float64(v.unison)))
+		for k := range v.unison {
+			v.uni[k].init(pt.Wave, pt.pulseWidth(), p.nextSeed())
+			v.uniRatio[k] = 1
+			if v.unison > 1 {
+				// Spread the copies evenly across the spread; random start
+				// phases (from the seeded generator) keep them from starting
+				// as one loud spike.
+				off := float64(pt.Spread) * (float64(k)/float64(v.unison-1) - 0.5)
+				v.uniRatio[k] = math.Exp2(off / 12)
+				v.uni[k].phase = float64(p.nextSeed()) / (1 << 32)
+			}
+		}
 		if pt.Detune != 0 {
 			v.osc2.init(pt.Wave, pt.pulseWidth(), p.nextSeed())
 			v.detuned = true
@@ -168,12 +203,13 @@ func (p *pool) sounding() int {
 	return n
 }
 
-// render adds one block of every voice to left and right.
-func (p *pool) render(left, right []float32) {
+// render adds one block of every voice to left and right, and their
+// reverb sends to bus.
+func (p *pool) render(left, right, bus []float32) {
 	for i := range p.voices {
 		v := &p.voices[i]
 		if v.active {
-			p.renderVoice(v, left, right)
+			p.renderVoice(v, left, right, bus)
 		}
 		if v.ended || !v.active && v.hasPending {
 			v.active = false
@@ -203,14 +239,16 @@ func (p *pool) pitchOffset(v *voiceSlot) float32 {
 	return float32(off)
 }
 
-func (p *pool) renderVoice(v *voiceSlot, left, right []float32) {
+func (p *pool) renderVoice(v *voiceSlot, left, right, bus []float32) {
 	pt := v.on.patch
-	pitch := float64(v.on.note + p.pitchOffset(v))
+	pitch := float64(v.on.note + v.on.layer + p.pitchOffset(v))
 	if pt.Sample != nil {
 		v.sample.step = float64(pt.Sample.Rate) / float64(p.rate) * math.Exp2((pitch-float64(pt.Sample.Root))/12)
 	} else {
 		hz := 440 * math.Exp2((pitch-69)/12)
-		v.osc1.setFreq(hz, p.rate)
+		for k := range v.unison {
+			v.uni[k].setFreq(hz*v.uniRatio[k], p.rate)
+		}
 		if v.detuned {
 			v.osc2.setFreq(hz*math.Exp2(float64(pt.Detune)/12), p.rate)
 		}
@@ -220,10 +258,17 @@ func (p *pool) renderVoice(v *voiceSlot, left, right []float32) {
 		switch {
 		case pt.Sample != nil:
 			x = v.sample.next()
-		case v.detuned:
-			x = 0.5 * (v.osc1.next() + v.osc2.next())
 		default:
-			x = v.osc1.next()
+			x = v.uni[0].next()
+			for k := 1; k < v.unison; k++ {
+				x += v.uni[k].next()
+			}
+			if v.unison > 1 {
+				x *= v.uniGain
+			}
+			if v.detuned {
+				x = 0.5 * (x + v.osc2.next())
+			}
 		}
 		x = v.filt.process(x) * v.env.next()
 		if v.fadeLen > 0 {
@@ -232,6 +277,7 @@ func (p *pool) renderVoice(v *voiceSlot, left, right []float32) {
 		}
 		left[f] += x * v.gainL
 		right[f] += x * v.gainR
+		bus[f] += x * v.send
 		if v.env.done() || v.sample.ended || v.fadeLen > 0 && v.fade <= 0 {
 			v.ended = true
 			break

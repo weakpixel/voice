@@ -1,5 +1,7 @@
 package voice
 
+import "fmt"
+
 // InstrumentSpec describes the sound of one instrument of a voice, as written
 // in a voice file: an oscillator patch, or a sample reference when Sample is
 // set. The synthesizer turns it into a patch (synth.PatchFromSpec); its
@@ -8,21 +10,25 @@ package voice
 // Zero values mean defaults: Wave "" is "sine", PulseWidth 0 is 0.5, Gain 0
 // is 1, Root 0 is 60.
 type InstrumentSpec struct {
-	Wave           string  `json:"wave,omitempty"` // sine, triangle, square, saw, noise
-	PulseWidth     float32 `json:"pulseWidth,omitempty"`
-	Detune         float32 `json:"detune,omitempty"`
-	AttackMs       float32 `json:"attackMs,omitempty"`
-	DecayMs        float32 `json:"decayMs,omitempty"`
-	Sustain        float32 `json:"sustain,omitempty"`
-	ReleaseMs      float32 `json:"releaseMs,omitempty"`
-	GlideFrom      float32 `json:"glideFrom,omitempty"`
-	GlideMs        float32 `json:"glideMs,omitempty"`
-	VibratoRate    float32 `json:"vibratoRate,omitempty"`
-	VibratoDepth   float32 `json:"vibratoDepth,omitempty"`
-	VibratoDelayMs float32 `json:"vibratoDelayMs,omitempty"`
-	Cutoff         float32 `json:"cutoff,omitempty"`
-	Resonance      float32 `json:"resonance,omitempty"`
-	Gain           float32 `json:"gain,omitempty"`
+	Wave           string    `json:"wave,omitempty"` // sine, triangle, square, saw, noise
+	PulseWidth     float32   `json:"pulseWidth,omitempty"`
+	Detune         float32   `json:"detune,omitempty"`
+	AttackMs       float32   `json:"attackMs,omitempty"`
+	DecayMs        float32   `json:"decayMs,omitempty"`
+	Sustain        float32   `json:"sustain,omitempty"`
+	ReleaseMs      float32   `json:"releaseMs,omitempty"`
+	GlideFrom      float32   `json:"glideFrom,omitempty"`
+	GlideMs        float32   `json:"glideMs,omitempty"`
+	VibratoRate    float32   `json:"vibratoRate,omitempty"`
+	VibratoDepth   float32   `json:"vibratoDepth,omitempty"`
+	VibratoDelayMs float32   `json:"vibratoDelayMs,omitempty"`
+	Cutoff         float32   `json:"cutoff,omitempty"`
+	Resonance      float32   `json:"resonance,omitempty"`
+	Gain           float32   `json:"gain,omitempty"`
+	Reverb         float32   `json:"reverb,omitempty"` // send into the stream's reverb, 0 to 1
+	Layers         []float32 `json:"layers,omitempty"` // semitone offsets played together, at most 4
+	Unison         int       `json:"unison,omitempty"` // oscillator copies, at most 7
+	Spread         float32   `json:"spread,omitempty"` // total detune of the unison copies in semitones
 
 	// Sample names a sound file the caller resolves (for example a path in
 	// an fs.FS next to the voice file). Root is the note it sounds at.
@@ -68,6 +74,20 @@ func (s *InstrumentSpec) validate(errs *fieldErrors, path string) {
 		errs.add(path+".resonance", "%g is outside 0 to below 1", s.Resonance)
 	}
 	errs.inRange(path+".gain", s.Gain, 0, 4)
+	errs.inRange(path+".reverb", s.Reverb, 0, 1)
+	if len(s.Layers) > 4 {
+		errs.add(path+".layers", "%d layers, at most 4", len(s.Layers))
+	}
+	for i, l := range s.Layers {
+		errs.inRange(fmt.Sprintf("%s.layers[%d]", path, i), l, -24, 24)
+	}
+	if s.Unison < 0 || s.Unison > 7 {
+		errs.add(path+".unison", "%d is outside 0 to 7", s.Unison)
+	}
+	if s.Unison > 1 && s.Sample != "" {
+		errs.add(path+".unison", "needs a wave, not a sample")
+	}
+	errs.inRange(path+".spread", s.Spread, 0, 12)
 	errs.inRange(path+".root", s.Root, 0, 127)
 	if s.LoopStart < 0 || s.LoopEnd < 0 || s.LoopEnd != 0 && s.LoopEnd <= s.LoopStart {
 		errs.add(path+".loopStart", "loop %d to %d is not a range", s.LoopStart, s.LoopEnd)
