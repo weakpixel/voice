@@ -8,9 +8,11 @@ The core module (`github.com/weakpixel/voice`) uses the standard library only; `
 
 | Package | Role |
 | --- | --- |
-| `voice` | `Sink`, `Owner`, `Instrument`, languages, voices, starter voices, `Parse`, `Compose`; later the `Speaker` |
+| `voice` | `Sink`, `Owner`, `Instrument`, languages, voices, starter voices, `Parse`, `Compose`, `Speaker` |
 | `voice/synth` | the synthesizer, implements `voice.Sink` |
 | `voice/wav` | WAV in and out |
+| `voice/voicetest` | `RecordingSink` |
+| `voice/ebiten` (nested module) | `Player` on an Ebiten audio context, example program |
 | `voice/cmd/voiceplay` | renders to WAV for listening |
 
 ## The `Sink` seam
@@ -32,6 +34,16 @@ A prefix tree keyed by folded runes holds both phonemes and punctuation, so one 
 Composition is a pure function of voice, text and tokens. The only randomness is a PCG generator seeded with the voice seed xor an FNV-1a hash of the text, so a line always sounds the same and two lines of one character differ. Times are computed in float seconds and converted per event, so rounding does not accumulate. Golden timelines of the starter voices in `testdata/compose/` catch unintended changes (`go test -run ComposeGolden -update` rewrites them).
 
 Reveal follows the tokens, never a separate character timer: a token's text appears when it starts, so the typewriter is always in step with the sound, and punctuation shows before its pause.
+
+## Speaker
+
+The speaker turns a timeline into a schedule of Sink calls (offs before ons at equal times) when a line starts, then only walks two cursors per `Update`: the schedule and the reveals. That is why steady-state `Update` allocates nothing, and why the reveal depends only on accumulated time, never on the update rate. `Say` allocates (parsing reuses the speaker's token slice; composing builds a new timeline).
+
+Every exit path (`Skip`, `Stop`, `Pause`, `Close`, a `Say` over a running line) calls `Release(owner)` rather than the remaining note offs: one call, and nothing can be missed. `Pause` releases too, because a sustained motif note would otherwise hang while time stands still.
+
+Events of `Say`, `Skip` and `Stop` can happen between updates. `Update` drops only the events the previous `Update` returned, so a game that calls `Say` and then `Update` still sees `Started`, and a game that reads events right after `Say` sees it too.
+
+Notes reach the synthesizer at the next 64-frame block after `Update`, and the player's buffer adds its length (50 ms by default in the Ebiten player). The reveal is not delayed to match: at 60 Hz the text runs at most about three frames ahead of the sound, which reads as in step.
 
 ## Synthesizer
 
@@ -60,8 +72,10 @@ Reveal follows the tokens, never a separate character timer: a token's text appe
 | 8 voices, filter | 184 µs | 0.86 | 626 µs | 2.9 |
 | 24 voices, filter | 508 µs | 2.4 | 1.7 ms | 8.0 |
 | NoteOn + NoteOff, applied | 89 ns | | 330 ns | |
+| `Speaker.Update` at 60 Hz (a new line whenever one ends) | 64 ns | | 357 ns | |
+| `Speaker.Say`, 36 characters (20 allocations) | 8.6 µs | | 43 µs | |
 
-All cases allocate nothing. A dialogue line uses two to four voices at a time, so the synthesizer costs well under 2 % of a core even in a browser.
+All cases but `Say` allocate nothing. A dialogue line uses two to four voices at a time, so the synthesizer costs well under 2 % of a core even in a browser.
 
 ## Known limits
 
@@ -69,7 +83,7 @@ All cases allocate nothing. A dialogue line uses two to four voices at a time, s
 
 ## Not built yet
 
-- The `Speaker` runtime, `voicetest.RecordingSink`, the Ebiten player module (milestone 3).
+- A version tag of the root module: until then the `ebiten` module reaches it through `replace => ..` and is not `go get`-able on its own.
 - Sample-accurate scheduling: notes start at the next 64-frame block. An optional `TimedSink` with time offsets can add it without changing `Sink`.
 - A SoundFont backend in a nested `sf2` module (optional).
 - Reverb, chorus, FM.

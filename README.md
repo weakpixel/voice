@@ -4,7 +4,7 @@ A Go library that turns dialogue text into musical gibberish for games. Text is 
 
 It works in any Go program, with any audio output, natively and in js/wasm, and renders offline to WAV. The core module has no dependencies. MIT licensed.
 
-**Status:** the synthesizer, languages, voices, the parser and the composer are built. The `Speaker` runtime and the Ebiten player come next.
+**Status:** milestones 1 to 3 are built: the synthesizer, languages, voices, the parser, the composer, the `Speaker` runtime and the Ebiten player. The library is at version 0; formats and API may still change.
 
 Hear the starter voices:
 
@@ -12,7 +12,26 @@ Hear the starter voices:
 go run ./cmd/voiceplay -voice chirpy -o build/line.wav "Hello there, traveler!"
 ```
 
-## Quick start: a line as a timeline
+## Quick start: a game (Ebiten)
+
+```go
+stream, _ := synth.NewStream(synth.StreamConfig{SampleRate: 48000})
+player, _ := voiceebiten.NewPlayer(audio.NewContext(48000), stream, 0)
+defer player.Close()
+
+v, _ := voice.Preset("soft")
+stream.SetVoice(1, v, nil)
+sp := voice.NewSpeaker(stream, 1)
+sp.Say(v, "Hello there, traveler!", voice.SayOptions{})
+
+// in Update:  sp.Update(time.Second / 60)
+// in Draw:    draw text[:sp.Revealed()]
+// on Space:   if !sp.Done() { sp.Skip() }
+```
+
+The full program is `ebiten/example` (`cd ebiten && go run ./example`). Any other audio output works the same way: the stream is an `io.Reader` of float32 (or int16) stereo PCM.
+
+## Quick start: standalone, as a timeline
 
 ```go
 v, _ := voice.Preset("soft")
