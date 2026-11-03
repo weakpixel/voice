@@ -1,6 +1,7 @@
-// Command example is a dialogue box with two speakers: each line is spoken
-// in its character's voice while the text types out. Space (or a click)
-// skips to the end of a line, or goes on to the next one.
+// Command example is a dialogue box with three speakers: each line is spoken
+// in its character's voice while the text types out, and the third speaks
+// in rhythm (the verse voice). Space (or a click) skips to the end of a
+// line, or goes on to the next one.
 //
 //	go run ./example            (from the ebiten module)
 package main
@@ -46,6 +47,9 @@ var script = []line{
 	{1, "Thank you. Is it far?"},
 	{0, "Not at all. An hour, maybe two."},
 	{1, "Then I had better hurry."},
+	{2, "Hold up, traveler, hear me out. The mill is old, but the road is long, and the river sings a different song."},
+	{1, "...Who are you?"},
+	{2, "Just a bard on a bridge, with a beat in my head. Follow the water, like I said!"},
 }
 
 type game struct {
@@ -60,17 +64,18 @@ func newGame() (*game, error) {
 		return nil, err
 	}
 	g := &game{}
-	for i, name := range []string{"chirpy", "gruff"} {
+	names := []string{"Wren", "Bram", "Kip"}
+	for i, name := range []string{"chirpy", "gruff", "verse"} {
 		v, err := voice.Preset(name)
 		if err != nil {
 			return nil, err
 		}
-		v.Pan = float32(i)*0.6 - 0.3 // a little apart in stereo
+		v.Pan = []float32{-0.3, 0.3, 0}[i] // a little apart in stereo
 		owner := voice.Owner(i + 1)
 		if err := stream.SetVoice(owner, v, nil); err != nil {
 			return nil, err
 		}
-		g.people = append(g.people, &character{name: []string{"Wren", "Bram"}[i], voice: v, speaker: voice.NewSpeaker(stream, owner)})
+		g.people = append(g.people, &character{name: names[i], voice: v, speaker: voice.NewSpeaker(stream, owner)})
 	}
 	if g.player, err = voiceebiten.NewPlayer(audio.NewContext(sampleRate), stream, 0); err != nil {
 		return nil, err

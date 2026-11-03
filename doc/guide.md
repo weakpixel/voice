@@ -41,7 +41,7 @@ A nested module, so only programs that use it depend on Ebiten. `voiceebiten.New
 
 Until the root module has a version tag, the nested module finds it through a `replace` to `..`: use it from a checkout of this repository (or a `go.work`).
 
-The example, a dialogue box with two characters:
+The example, a dialogue box with three characters (one speaks in rhythm with `verse`):
 
 ```bash
 cd ebiten && go run ./example                     # Space or click: skip, then next line
