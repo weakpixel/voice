@@ -27,6 +27,10 @@ func PatchFromSpec(spec voice.InstrumentSpec, load SampleLoader) (Patch, error) 
 		Vibrato:    Vibrato{Rate: spec.VibratoRate, Depth: spec.VibratoDepth, Delay: ms(spec.VibratoDelayMs)},
 		Filter:     Filter{Cutoff: spec.Cutoff, Resonance: spec.Resonance},
 		Gain:       spec.Gain,
+		Reverb:     spec.Reverb,
+		Layers:     spec.Layers,
+		Unison:     spec.Unison,
+		Spread:     spec.Spread,
 	}
 	if spec.Wave != "" {
 		i := slices.Index(waveformNames[:], spec.Wave)

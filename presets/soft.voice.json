@@ -9,10 +9,10 @@
   "motifVolume": 0.25,
   "seed": 1,
   "instruments": {
-    "vowel": {"wave": "triangle", "attackMs": 5, "decayMs": 70, "releaseMs": 30, "cutoff": 3000},
-    "sonorant": {"wave": "sine", "attackMs": 6, "decayMs": 60, "releaseMs": 30},
-    "fricative": {"wave": "noise", "attackMs": 3, "decayMs": 30, "releaseMs": 15, "cutoff": 3500, "resonance": 0.3, "gain": 0.3},
-    "plosive": {"wave": "square", "pulseWidth": 0.3, "attackMs": 2, "decayMs": 25, "releaseMs": 10, "cutoff": 2000, "gain": 0.35},
-    "motif": {"wave": "sine", "attackMs": 40, "decayMs": 100, "sustain": 0.8, "releaseMs": 200, "gain": 0.8}
+    "vowel": {"reverb": 0.15, "wave": "triangle", "attackMs": 5, "decayMs": 70, "releaseMs": 30, "cutoff": 3000},
+    "sonorant": {"reverb": 0.15, "wave": "sine", "attackMs": 6, "decayMs": 60, "releaseMs": 30},
+    "fricative": {"reverb": 0.15, "wave": "noise", "attackMs": 3, "decayMs": 30, "releaseMs": 15, "cutoff": 3500, "resonance": 0.3, "gain": 0.3},
+    "plosive": {"reverb": 0.15, "wave": "square", "pulseWidth": 0.3, "attackMs": 2, "decayMs": 25, "releaseMs": 10, "cutoff": 2000, "gain": 0.35},
+    "motif": {"reverb": 0.15, "wave": "sine", "attackMs": 40, "decayMs": 100, "sustain": 0.8, "releaseMs": 200, "gain": 0.8}
   }
 }

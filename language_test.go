@@ -23,7 +23,7 @@ func TestDefaultLanguageAndPresetsLoad(t *testing.T) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
-	if _, err := Preset("loud"); err == nil || !strings.Contains(err.Error(), "soft, chirpy, gruff") {
+	if _, err := Preset("loud"); err == nil || !strings.Contains(err.Error(), "soft, chirpy, gruff, divine") {
 		t.Errorf("unknown preset: %v", err)
 	}
 	a, _ := Preset("soft")
@@ -149,5 +149,25 @@ func TestLoadVoiceErrors(t *testing.T) {
 		"trumpet": {}}}`))
 	if err.Error() != err2.Error() {
 		t.Error("error order differs between loads")
+	}
+}
+
+func TestLoadVoiceEffectFields(t *testing.T) {
+	v, err := LoadVoice(strings.NewReader(`{"version": 0, "instruments": {
+		"vowel": {"wave": "saw", "reverb": 0.5, "layers": [0, -12, 7], "unison": 5, "spread": 0.3}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in := v.Instruments[InstVowel]; in.Reverb != 0.5 || len(in.Layers) != 3 || in.Unison != 5 || in.Spread != 0.3 {
+		t.Errorf("fields not loaded: %+v", in)
+	}
+	_, err = LoadVoice(strings.NewReader(`{"version": 0, "instruments": {
+		"vowel": {"reverb": 2, "layers": [0, 1, 2, 3, 30], "unison": 8, "spread": -1},
+		"motif": {"sample": "a.wav", "unison": 3}}}`))
+	for _, w := range []string{"instruments.vowel.reverb: 2", "instruments.vowel.layers: 5 layers", "instruments.vowel.layers[4]: 30",
+		"instruments.vowel.unison: 8", "instruments.vowel.spread: -1", "instruments.motif.unison: needs a wave"} {
+		if err == nil || !strings.Contains(err.Error(), w) {
+			t.Errorf("error does not contain %q: %v", w, err)
+		}
 	}
 }

@@ -256,7 +256,9 @@ func TestConcurrentSink(t *testing.T) {
 func TestAllocs(t *testing.T) {
 	s := newTestStream(t, DefaultVoices)
 	for inst := range voice.InstrumentCount {
-		setPatch(t, s, 1, voice.Instrument(inst), Patch{Wave: Waveform(inst % 5), Filter: Filter{Cutoff: 3000}, Env: Envelope{Decay: 40 * time.Millisecond}})
+		// Reverb sends, chord layers and unison are active too.
+		setPatch(t, s, 1, voice.Instrument(inst), Patch{Wave: Waveform(inst % 4), Filter: Filter{Cutoff: 3000}, Env: Envelope{Decay: 40 * time.Millisecond},
+			Reverb: 0.3, Layers: []float32{0, 7}, Unison: 3, Spread: 0.2})
 	}
 	buf := make([]byte, 8*512)
 	left, right := make([]float32, 512), make([]float32, 512)

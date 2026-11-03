@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/weakpixel/voice"
 )
 
 func runOK(t *testing.T, args ...string) string {
@@ -53,7 +55,7 @@ func peak(x []float32) float32 {
 }
 
 func TestLineRender(t *testing.T) {
-	for _, name := range []string{"soft", "chirpy", "gruff"} {
+	for _, name := range voice.PresetNames() {
 		left, _, _, err := render(options{voice: name, rate: 22050, text: "Hello there, traveler!"})
 		if err != nil {
 			t.Fatal(err)

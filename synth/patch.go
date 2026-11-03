@@ -94,7 +94,28 @@ type Patch struct {
 	Filter  Filter
 	// Gain scales the patch's output; 0 means 1.
 	Gain float32
+	// Reverb is how much of the patch goes into the stream's reverb, 0 (dry)
+	// to 1. See Stream.SetReverb.
+	Reverb float32
+	// Layers are semitone offsets played together for every note, like a
+	// chord: [0, -12, 7] plays the note, an octave below and a fifth above.
+	// Each layer takes a voice of the pool, and the velocity is scaled by
+	// 1/sqrt(len) so a chord is about as loud as one note. Empty means [0];
+	// at most MaxLayers, each -24 to 24.
+	Layers []float32
+	// Unison runs this many copies of the oscillator, detuned evenly across
+	// Spread semitones (in total), for the sound of a section instead of a
+	// single instrument. 0 and 1 mean one oscillator; at most MaxUnison.
+	// Oscillator patches only.
+	Unison int
+	Spread float32
 }
+
+// The limits of Patch.Layers and Patch.Unison.
+const (
+	MaxLayers = 4
+	MaxUnison = 7
+)
 
 // Validate reports every problem of the patch together (errors.Join), or nil.
 func (p *Patch) Validate() error {
@@ -144,8 +165,28 @@ func (p *Patch) Validate() error {
 	if finite("gain", p.Gain) && p.Gain < 0 {
 		bad("gain", "negative gain %g", p.Gain)
 	}
+	if finite("reverb", p.Reverb) && (p.Reverb < 0 || p.Reverb > 1) {
+		bad("reverb", "%g is outside 0 to 1", p.Reverb)
+	}
+	if len(p.Layers) > MaxLayers {
+		bad("layers", "%d layers, at most %d", len(p.Layers), MaxLayers)
+	}
+	for i, l := range p.Layers {
+		if finite(fmt.Sprintf("layers[%d]", i), l) && (l < -24 || l > 24) {
+			bad(fmt.Sprintf("layers[%d]", i), "%g is outside -24 to 24", l)
+		}
+	}
+	if p.Unison < 0 || p.Unison > MaxUnison {
+		bad("unison", "%d is outside 0 to %d", p.Unison, MaxUnison)
+	}
+	if finite("spread", p.Spread) && (p.Spread < 0 || p.Spread > 12) {
+		bad("spread", "%g is outside 0 to 12", p.Spread)
+	}
 	if p.Sample != nil {
 		errs = append(errs, p.Sample.validate()...)
+		if p.Unison > 1 {
+			bad("unison", "needs an oscillator, not a sample")
+		}
 	}
 	return errors.Join(errs...)
 }
@@ -156,6 +197,8 @@ func (p *Patch) pulseWidth() float64 {
 	}
 	return float64(p.PulseWidth)
 }
+
+func (p *Patch) unison() int { return max(p.Unison, 1) }
 
 func (p *Patch) gain() float32 {
 	if p.Gain == 0 {

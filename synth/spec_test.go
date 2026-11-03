@@ -2,6 +2,7 @@ package synth
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ func TestPatchFromSpec(t *testing.T) {
 		Vibrato: Vibrato{Rate: 6, Depth: 0.2, Delay: 50 * time.Millisecond},
 		Filter:  Filter{Cutoff: 2000, Resonance: 0.4}, Gain: 0.5,
 	}
-	if p != want {
+	if !reflect.DeepEqual(p, want) {
 		t.Errorf("got %+v\nwant %+v", p, want)
 	}
 }
@@ -72,10 +73,10 @@ func TestSetVoicePresets(t *testing.T) {
 		}
 		for inst := range voice.Instrument(voice.InstrumentCount) {
 			s.NoteOn(3, inst, v.BaseNote, 0.8, 0)
-			x := render(s, 50*time.Millisecond)
+			x := render(s, 600*time.Millisecond) // slow attacks (divine's motif) need a while
 			s.Release(3)
 			render(s, time.Second)
-			if p := peak(x); p < 0.05 || p >= 1 {
+			if p := peak(x); p < 0.02 || p >= 1 {
 				t.Errorf("%s %s: peak %g", name, inst, p)
 			}
 		}

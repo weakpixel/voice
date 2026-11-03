@@ -51,7 +51,7 @@ Notes reach the synthesizer at the next 64-frame block after `Update`, and the p
 
 **Double buffer.** The `Sink` methods append a command to a slice under a mutex. At each block the renderer swaps that slice for its own empty one, so the lock is held for the swap only and the caller never waits for rendering. Nothing is dropped. Once both slices have grown to the busiest block nothing allocates; the alloc test checks `Read`, `Render` and the `Sink` methods.
 
-**Voice pool.** A fixed pool (24 by default) avoids allocation per note. Stealing takes the oldest releasing voice first (it is fading anyway), then the oldest sounding one. A stolen voice fades out over 2 ms and the new note waits for the fade: cutting to zero would click, and 2 ms of delay is inaudible next to the block and player latency.
+**Voice pool.** A fixed pool (32 by default, since chord layers take a voice each) avoids allocation per note. Stealing takes the oldest releasing voice first (it is fading anyway), then the oldest sounding one. A stolen voice fades out over 2 ms and the new note waits for the fade: cutting to zero would click, and 2 ms of delay is inaudible next to the block and player latency.
 
 **No clicks.** Every jump in level clicks, so: attack, release and a falling decay last at least 2 ms; a note off during the attack waits for the peak (also making on and off in one block audible); one-shot samples fade over their last 2 ms; steals fade.
 
@@ -59,7 +59,11 @@ Notes reach the synthesizer at the next 64-frame block after `Update`, and the p
 
 **Filter.** A trapezoidal (TPT) state-variable low-pass after Andrew Simper. Unlike the classic Chamberlin form it stays stable at high cutoffs and high resonance; resonance is capped internally at 0.98. Coefficients are computed once per note.
 
-**Output.** The voices are summed, scaled by the master gain and hard-clipped to -1 to 1. Dialogue blips rarely stack loud enough to clip; the clip is a guard, not a limiter.
+**Layers and unison.** A chord layer is a full voice: its own envelope, filter and steal handling, so a stolen layer fades like any note. Each layer remembers the played note, so a `NoteOff` of that note ends the whole chord and the `Sink` contract is unchanged. Unison copies live inside one voice (a fixed array of seven oscillators, so no allocation), share its envelope and filter, start at random phases from the seeded generator and are mixed at 1/√n, because detuned copies add up like noise, not like one wave.
+
+**Reverb.** One stereo Freeverb (Jezar's public-domain design) per stream: eight low-pass feedback combs and four allpasses per channel, with Freeverb's delay lengths scaled to the stream's rate and the right channel 23 samples longer for width. Voices send a mono signal into a bus with their patch's `Reverb` level; the reverb adds its wet output to the mix. It is skipped while no patch sends and it has died away (no input for longer than its longest delay path and output below 10⁻⁶), which also keeps its filters out of slow denormal numbers. One reverb per stream rather than per speaker was chosen for cost: a game scene is one room. Its delay lines (about 70 KB at 48 kHz) are allocated once in `NewStream`.
+
+**Output.** The voices and the reverb are summed, scaled by the master gain and hard-clipped to -1 to 1. Dialogue blips rarely stack loud enough to clip; the clip is a guard, not a limiter.
 
 ## Measured costs
 
@@ -71,11 +75,14 @@ Notes reach the synthesizer at the next 64-frame block after `Update`, and the p
 | 4 voices | 94 µs | 0.44 | 344 µs | 1.6 |
 | 8 voices, filter | 184 µs | 0.86 | 626 µs | 2.9 |
 | 24 voices, filter | 508 µs | 2.4 | 1.7 ms | 8.0 |
+| 4 voices, reverb | 146 µs | 0.68 | 566 µs | 2.7 |
+| 24 voices, filter, reverb | 586 µs | 2.7 | 2.2 ms | 10.4 |
+| 12 voices, filter, reverb, unison 5 | 676 µs | 3.2 | 2.3 ms | 10.9 |
 | NoteOn + NoteOff, applied | 89 ns | | 330 ns | |
 | `Speaker.Update` at 60 Hz (a new line whenever one ends) | 64 ns | | 357 ns | |
 | `Speaker.Say`, 36 characters (20 allocations) | 8.6 µs | | 43 µs | |
 
-All cases but `Say` allocate nothing. A dialogue line uses two to four voices at a time, so the synthesizer costs well under 2 % of a core even in a browser.
+All cases but `Say` allocate nothing. A dialogue line uses two to four voices at a time (up to about twelve for `divine` with its chords and overlapping releases), so the synthesizer costs well under 2 % of a core for the light voices and about 3 % native, 11 % in a browser, for the heaviest.
 
 ## Known limits
 
@@ -86,4 +93,4 @@ All cases but `Say` allocate nothing. A dialogue line uses two to four voices at
 - A version tag of the root module: until then the `ebiten` module reaches it through `replace => ..` and is not `go get`-able on its own.
 - Sample-accurate scheduling: notes start at the next 64-frame block. An optional `TimedSink` with time offsets can add it without changing `Sink`.
 - A SoundFont backend in a nested `sf2` module (optional).
-- Reverb, chorus, FM.
+- Chorus, delay, FM, a reverb per speaker.
