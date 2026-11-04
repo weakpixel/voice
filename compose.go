@@ -85,6 +85,10 @@ func ComposeWith(v *Voice, text string, tokens []Phoneme, opts ComposeOptions) T
 	} else {
 		c.phonemes(tokens)
 	}
+	if c.voiced {
+		c.motifEnd = c.breathEnd(c.voiceEnd, c.snap)
+		c.tl.Duration = max(c.tl.Duration, seconds(c.motifEnd))
+	}
 	c.motif()
 	slices.SortStableFunc(c.tl.Notes, func(a, b Note) int { return cmpDur(a.On, b.On) })
 	c.tl.TextLen = len(text)
@@ -157,6 +161,11 @@ type composer struct {
 	beat    float64 // seconds
 	clauses []clause
 	tl      Timeline
+
+	voiced   bool                  // the line has at least one phoneme note
+	voiceEnd float64               // seconds: the end of the last phoneme's slot
+	snap     func(float64) float64 // the next beat at or after a time; nil without rhythm
+	motifEnd float64               // seconds: when the motif's last note ends (the breath)
 }
 
 // contourShift is the pitch shift of the last three phonemes of a clause,
@@ -173,6 +182,7 @@ const (
 
 func (c *composer) phonemes(tokens []Phoneme) {
 	gate := float64(clampF(c.v.Length, 0.05, 1))
+	end := c.lineEnding(tokens)
 	t := 0.0
 	ci := 0
 	for i, tok := range tokens {
@@ -189,11 +199,12 @@ func (c *composer) phonemes(tokens []Phoneme) {
 				cl.start = t
 			}
 			pitch, vel := c.tone(tokens, i, cl)
-			slot := c.beat * float64(tok.Length)
-			c.note(tok, t, slot*gate, pitch, vel)
+			slot := c.beat * float64(tok.Length) * end.stretch[i]
+			c.note(tok, t, slot*min(1, gate+end.gate[i]), pitch, vel*end.fade[i])
 			t += slot
 			cl.end = t
 			c.tl.Duration = seconds(t)
+			c.voiced, c.voiceEnd = true, t
 		}
 	}
 }
@@ -294,6 +305,9 @@ func (c *composer) motif() {
 				degree += pick(c.rng, -2, 2, 3)
 			}
 			degree = clampF(degree, -7, 12)
+		}
+		if i == len(spans)-1 {
+			s.end = max(s.end, c.motifEnd) // the last note rings on for the breath
 		}
 		c.tl.Notes = append(c.tl.Notes, Note{
 			On: seconds(s.start), Off: seconds(s.end), Instrument: InstMotif,

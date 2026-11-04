@@ -7,6 +7,7 @@
   "length": 1,
   "speed": 5,
   "motifVolume": 0.55,
+  "breath": 0.8,
   "seed": 4,
   "instruments": {
     "vowel": {"wave": "saw", "unison": 5, "spread": 0.25, "layers": [0, -12, 7], "attackMs": 70, "decayMs": 250, "sustain": 0.7, "releaseMs": 500, "cutoff": 1400, "resonance": 0.2, "vibratoRate": 4.5, "vibratoDepth": 0.1, "vibratoDelayMs": 150, "reverb": 0.6, "gain": 0.25},

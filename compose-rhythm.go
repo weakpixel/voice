@@ -36,6 +36,16 @@ func (g *grid) at(k int) float64 {
 	return t
 }
 
+// nextBeat returns the time of the first beat (a step that is a multiple
+// of the division) at or after t.
+func (g *grid) nextBeat(t float64) float64 {
+	k := nextMultiple(max(0, int(math.Ceil((t-g.origin)/g.step))), g.division)
+	for g.at(k) < t-1e-9 {
+		k += g.division
+	}
+	return g.at(k)
+}
+
 // nextMultiple returns the smallest multiple of m that is at least k.
 func nextMultiple(k, m int) int { return (k + m - 1) / m * m }
 
@@ -71,6 +81,8 @@ func (c *composer) rhythmic(tokens []Phoneme, opts ComposeOptions) {
 
 	accents := c.accents(r, g.barSteps)
 	gate := float64(clampF(c.v.Length, 0.05, 1))
+	end := c.lineEnding(tokens)
+	c.snap = func(t float64) float64 { return g.nextBeat(t) }
 	starts := make([]float64, len(tokens)) // when each phoneme token starts
 	ends := make([]float64, len(tokens))   // and when its slot ends
 	k, voiceEnd := 0, 0
@@ -78,6 +90,7 @@ func (c *composer) rhythmic(tokens []Phoneme, opts ComposeOptions) {
 	for si := range syl {
 		s := &syl[si]
 		steps := max(1, int(math.Round((s.onset+s.body)/g.step)))
+		steps = max(steps, int(math.Round(float64(steps)*end.stretch[s.nucleus]))) // the line's end slows down
 		nucleus := g.at(k)
 		bodyEnd := g.at(k + steps)
 		if si+1 < len(syl) && s.rest == RestNone {
@@ -111,12 +124,13 @@ func (c *composer) rhythmic(tokens []Phoneme, opts ComposeOptions) {
 			pitch, vel := c.tone(tokens, i, cl)
 			pitch += rhythmAccentPitch * a
 			vel *= 1 + rhythmAccentVelocity*a
-			c.note(tok, t, slot*gate, pitch, vel)
+			c.note(tok, t, slot*min(1, gate+end.gate[i]), pitch, vel*end.fade[i])
 			starts[i], ends[i] = t, t+slot
 			t += slot
 			cl.end = t
 		}
 		c.tl.Duration = seconds(bodyEnd)
+		c.voiced, c.voiceEnd = true, bodyEnd
 		k += steps
 		voiceEnd = k
 		k = c.rest(k, s, &g)

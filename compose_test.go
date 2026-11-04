@@ -82,8 +82,10 @@ func TestComposeTiming(t *testing.T) {
 	wantNotes := []Note{
 		{On: 0, Off: 50 * ms, Instrument: InstPlosive},
 		{On: 100 * ms, Off: 150 * ms, Instrument: InstVowel},
-		// "... " is 6 + 0.5 beats of silence; the quote is skipped.
-		{On: 850 * ms, Off: 900 * ms, Instrument: InstVowel},
+		// "... " is 6 + 0.5 beats of silence; the quote is skipped. The
+		// line's last syllable is 1.5 times as long (150 ms) and its note
+		// holds 0.5 + 0.15 of it.
+		{On: 850 * ms, Off: 947500 * time.Microsecond, Instrument: InstVowel},
 	}
 	if len(tl.Notes) != len(wantNotes) {
 		t.Fatalf("%d notes: %+v", len(tl.Notes), tl.Notes)
@@ -98,7 +100,7 @@ func TestComposeTiming(t *testing.T) {
 	if d := tl.Notes[2].Note - tl.Notes[1].Note; d != -4 {
 		t.Errorf("fall on the last phoneme: %g semitones, want -4", d)
 	}
-	wantReveals := []Reveal{{0, 1}, {100 * ms, 2}, {200 * ms, 5}, {800 * ms, 6}, {850 * ms, 8}, {950 * ms, 10}}
+	wantReveals := []Reveal{{0, 1}, {100 * ms, 2}, {200 * ms, 5}, {800 * ms, 6}, {850 * ms, 8}, {1000 * ms, 10}}
 	if len(tl.Reveals) != len(wantReveals) {
 		t.Fatalf("reveals %+v", tl.Reveals)
 	}
@@ -107,7 +109,8 @@ func TestComposeTiming(t *testing.T) {
 			t.Errorf("reveal %d: %+v, want %+v", i, tl.Reveals[i], w)
 		}
 	}
-	if tl.Duration != 950*ms || tl.TextLen != len(text) {
+	// The line ends after the voice's last sound plus the breath.
+	if d := tl.Duration - (1000+400)*ms; d < -time.Microsecond || d > time.Microsecond || tl.TextLen != len(text) {
 		t.Errorf("duration %v textLen %d", tl.Duration, tl.TextLen)
 	}
 }
@@ -131,7 +134,7 @@ func TestComposeContours(t *testing.T) {
 	}
 	if l2, err := LoadLanguage(stringsReader(`{"version": 0, "phonemes": [{"symbol": "a", "category": "vowel", "velocity": 0.5}]}`)); err == nil {
 		tl := ComposeText(v, l2, "aa!")
-		if n := tl.Notes[1]; n.Velocity != v.Velocity*0.5*accentVelocity {
+		if n := tl.Notes[1]; n.Velocity != v.Velocity*0.5*accentVelocity*finalFade[2] {
 			t.Errorf("accent velocity %g", n.Velocity)
 		}
 	} else {

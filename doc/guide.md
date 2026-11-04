@@ -29,7 +29,7 @@ Each speaker needs its own owner on the stream, and the stream needs that owner'
 - `Update(dt)` advances the line, sends the notes that are due and moves the reveal. The reveal depends only on the time that has passed, not on the frame rate. It allocates nothing.
 - `Revealed()` is how many bytes of the text to show; `text[:Revealed()]` always ends between tokens, never inside a character.
 - `Skip()` shows all text and releases the notes (`Skipped`). `Stop()` releases the notes and leaves the text as it is (`Stopped`). `Pause()` stops time and releases the sounding notes (a held note would hang); `Resume()` continues with the next notes. `Close()` stops like `Stop` and makes later `Say` calls do nothing.
-- `Done()` is true when no line is playing: before the first `Say`, and after a line completed, was skipped or stopped. A line completes when its last sound ends; a final pause does not delay it.
+- `Done()` is true when no line is playing: before the first `Say`, and after a line completed, was skipped or stopped. A line completes at its timeline's `Duration`: after its last sound and the voice's `breath`, so the motif can ring out; a final pause does not delay it. The text is complete earlier, when its last token starts.
 - `Events()` returns what happened since the previous `Update` began: the events of `Say`, `Skip`, `Stop` and `Close` calls since then and those of the `Update` itself. Each `Event` has its `Kind` and the `Line` number (1 for the first `Say`). The slice is reused and valid until the next `Update`.
 - `Timeline()` is the current line's composed [timeline](#compose).
 
@@ -134,6 +134,7 @@ A voice is how one character speaks. Six starter voices are built in, `voice.Pre
 | `speed` | beats per second, 1 to 60 (default 14) |
 | `pan` | -1 (left) to 1 (right) |
 | `motifVolume` | loudness of the motif, 0 to 1 (default 0.2); 0 turns it off |
+| `breath` | seconds the motif's last note rings on after the voice, 0 to 2 (default 0.4); the line completes after it. 0 ends the motif with the voice |
 | `seed` | mixed with a hash of the text; change it for a different melody of the same lines |
 | `instruments` | `vowel` (required), `sonorant`, `fricative`, `plosive`, `motif`; missing ones play the vowel's sound |
 | `percussion` | named [percussion sounds](#percussion) the rhythm's beat plays, at most 8 |
@@ -198,7 +199,9 @@ A `Speaker` does this for you; use `Compose` directly to render offline or to dr
 - The text of each token is revealed when the token starts, so a punctuation mark shows before its pause.
 - Each clause (text up to punctuation) follows its punctuation's end: `fall` lowers the last three notes by 1, 2 and 4 semitones, `rise` raises them by 1, 3 and 5, `accent` raises the whole clause by 1 semitone and makes it 20 % louder. Punctuation right after punctuation (`?!`) belongs to the same clause; the last end rule wins.
 - The motif is two to four long soft notes on the `motif` instrument, an octave below the voice: one per clause (a single clause is split in two, more than four clauses are grouped into four). Each motif note moves from the previous one: down after a fall, up after a rise or accent (louder too), a small step otherwise.
-- `Duration` is the end of the last phoneme; a final pause does not count. The last reveal shows the whole text.
+- The line ends the way speech does: its last syllable (the last vowel and the consonants after it) takes 1.5 times as long and its notes hold 0.15 more of their slot, the last syllable before each other `.` `?` `!` takes 1.25 times as long, and the last three phonemes play at 90 %, 80 % and 70 % of their velocity.
+- The motif's last note rings on for the voice's `breath` after the last phoneme, then its release fades it.
+- `Duration` is the end of the last phoneme plus the `breath`; a final pause does not count. The last reveal shows the whole text, at the latest when the last phoneme ends.
 
 A voice with a `rhythm` is timed on its beat grid instead (contours and the motif stay as above):
 
@@ -208,6 +211,7 @@ A voice with a `rhythm` is timed on its beat grid instead (contours and the moti
 - The accent of the nucleus's step makes the syllable up to 40 % louder and 2 semitones higher.
 - The first nucleus sits on the bar line after the count-in (or, without a count-in, right after its leading consonants). The beat plays from the count-in to the end of the bar in which the voice's last sound ends, and `Duration` covers it.
 - Text is revealed when its sound starts, so nothing shows during the count-in.
+- The ending works as above in whole steps: the last syllable takes 1.5 times its steps (rounded), and the breath ends on the first beat at least `breath` after the voice.
 
 `ComposeOptions` (also in `SayOptions`) tie a rhythmic line to the game's music. `Clock{BPM, Phase}` replaces the voice's tempo and puts the first nucleus on a bar line of the music: `Phase` is the time from the start of the line until the music's next bar begins (taken modulo a bar, so the negated time since the music started works too). The voice starts after its count-in, one bar later if its leading consonants do not fit before the bar line. `MuteBeat` leaves out the percussion, when the music has its own. Both do nothing for a voice without a rhythm.
 

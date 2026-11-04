@@ -371,3 +371,31 @@ func BenchmarkSayRhythm(b *testing.B) {
 		s.Say(v, line, voice.SayOptions{})
 	}
 }
+
+func TestSpeakerCompletesAfterBreath(t *testing.T) {
+	v := soft(t)
+	s := voice.NewSpeaker(voicetest.NewRecordingSink(0), 1)
+	s.Say(v, line, voice.SayOptions{})
+	tl := s.Timeline()
+	var voiceEnd time.Duration
+	for _, n := range tl.Notes {
+		if n.Instrument != voice.InstMotif {
+			voiceEnd = max(voiceEnd, n.Off)
+		}
+	}
+	smp := runAt(s, 1000, 20*time.Second)
+	done := smp[len(smp)-1].at
+	breath := time.Duration(float64(v.Breath) * float64(time.Second))
+	if done < voiceEnd+breath-10*time.Millisecond || done > tl.Duration+time.Millisecond {
+		t.Errorf("completed at %v, want after the voice (%v) and its breath (%v): %v", done, voiceEnd, breath, tl.Duration)
+	}
+	// The text is complete before the breath.
+	for _, x := range smp {
+		if x.revealed == len(line) {
+			if x.at > tl.Duration-breath+time.Millisecond {
+				t.Errorf("text complete at %v, during the breath (%v to %v)", x.at, tl.Duration-breath, tl.Duration)
+			}
+			break
+		}
+	}
+}
