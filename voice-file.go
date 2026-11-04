@@ -30,7 +30,11 @@ type Voice struct {
 	// MotifVolume is the velocity of the motif notes, 0 to 1; 0 turns the
 	// motif off.
 	MotifVolume float32
-	Seed        uint64 // mixed with a hash of the text: same voice and text, same line
+	// Breath is how long, in seconds, the motif's last note rings on after
+	// the voice's last sound, 0 to 2; the line ends after it. 0 ends the
+	// motif with the voice.
+	Breath float32
+	Seed   uint64 // mixed with a hash of the text: same voice and text, same line
 
 	// Instruments are indexed by Instrument. Loading fills instruments the
 	// file leaves out with the vowel's.
@@ -59,6 +63,7 @@ type voiceFile struct {
 	Speed       *float32                   `json:"speed"`
 	Pan         float32                    `json:"pan"`
 	MotifVolume *float32                   `json:"motifVolume"`
+	Breath      *float32                   `json:"breath"`
 	Seed        uint64                     `json:"seed"`
 	Instruments map[string]InstrumentSpec  `json:"instruments"`
 	Percussion  map[string]json.RawMessage `json:"percussion"`
@@ -73,6 +78,7 @@ const (
 	DefaultLength      = 0.8
 	DefaultSpeed       = 14
 	DefaultMotifVolume = 0.2
+	DefaultBreath      = 0.4
 )
 
 // LoadVoice reads a *.voice.json file. Malformed JSON and unknown fields are
@@ -126,6 +132,7 @@ func (f *voiceFile) build() (*Voice, error) {
 		Speed:       orDefault(f.Speed, DefaultSpeed),
 		Pan:         f.Pan,
 		MotifVolume: orDefault(f.MotifVolume, DefaultMotifVolume),
+		Breath:      orDefault(f.Breath, DefaultBreath),
 		Seed:        f.Seed,
 	}
 	vowel, ok := f.Instruments[InstVowel.String()]
@@ -177,6 +184,7 @@ func (v *Voice) validate(errs *fieldErrors, check []string) {
 	errs.inRange("speed", v.Speed, 1, 60)
 	errs.inRange("pan", v.Pan, -1, 1)
 	errs.inRange("motifVolume", v.MotifVolume, 0, 1)
+	errs.inRange("breath", v.Breath, 0, 2)
 	for _, name := range check {
 		if i := slices.Index(instrumentNames[:], name); i >= 0 {
 			v.Instruments[i].validate(errs, "instruments."+name)

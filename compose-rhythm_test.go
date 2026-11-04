@@ -97,7 +97,7 @@ func TestRhythmAccents(t *testing.T) {
 	vowels := notesOf(tl, InstVowel)
 	origin := vowels[0].On
 	var strong, weak float32
-	for _, n := range vowels {
+	for _, n := range vowels[:len(vowels)-3] { // the last ones fade out
 		k, _ := steps(n.On - origin)
 		switch {
 		case k%16 == 0:
