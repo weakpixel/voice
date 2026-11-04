@@ -19,7 +19,7 @@ Every topic has one home; link to it instead of repeating it. If code and a doc 
 | `voice/wav` | same | stdlib | 16-bit PCM WAV in, float32 stereo WAV out |
 | `voice/voicetest` | same | stdlib, root | Test helpers such as a recording `Sink` |
 | `voice/cmd/voiceplay` | same | stdlib, the packages above | Renders a line or a voice's patches to WAV (`flag`, no Cobra) |
-| `voice/ebiten` | `github.com/weakpixel/voice/ebiten` (nested) | Ebiten `audio`, the core | `Player` for a `synth.Stream`; example program |
+| `voice/ebiten` | `github.com/weakpixel/voice/ebiten` (nested) | Ebiten `audio` (and its oto), the core | `Player` for a `synth.Stream`; example program; `cmd/say` (speaks a line on the audio device) |
 | `voice/sf2` | `github.com/weakpixel/voice/sf2` (nested, optional) | go-meltysynth fork, the core | SoundFont backend implementing `voice.Sink` |
 
 The plan that describes the milestones is `ecs/plans/voice-library.plan.md` in the project's shared folder (not in this repository).

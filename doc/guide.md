@@ -303,3 +303,24 @@ go run ./cmd/voiceplay -patches -o build/patches.wav
 | `-rate` | sample rate (default 48000) |
 
 Exit codes: 0 success, 1 failure, 2 usage error.
+
+## say
+
+`say` speaks a line straight through the default audio device and types it out in the terminal as it is spoken, with no WAV file. It needs an audio backend, so it lives in the `ebiten` module (`ebiten/cmd/say`), not next to `voiceplay` in the dependency-free core. It plays through oto, the audio library under Ebiten's audio package, directly: Ebiten's audio context opens the device only from a running game loop, and a command line program has none.
+
+```bash
+cd ebiten
+go run ./cmd/say "Hello there, traveler!"
+go run ./cmd/say -voice flow "Yo, listen up. I came from the hills, with nothing but skills."
+go run ./cmd/say -voice my.voice.json -lang my.lang.json "Kel thae, varan."
+go build -o ../build/say ./cmd/say
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `-voice` | as for `voiceplay` (default `soft`) |
+| `-lang` | as for `voiceplay` |
+| `-volume` | playback volume, 0 to 1 (default 1) |
+| `-rate` | sample rate (default 48000) |
+
+Ctrl+C stops the line and releases its notes. Exit codes: 0 success (also after Ctrl+C), 1 failure (bad voice or language, no audio device), 2 usage error. On Linux the audio goes through PulseAudio (or PipeWire's PulseAudio server), falling back to ALSA.

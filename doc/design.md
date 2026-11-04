@@ -12,7 +12,7 @@ The core module (`github.com/weakpixel/voice`) uses the standard library only; `
 | `voice/synth` | the synthesizer, implements `voice.Sink` |
 | `voice/wav` | WAV in and out |
 | `voice/voicetest` | `RecordingSink` |
-| `voice/ebiten` (nested module) | `Player` on an Ebiten audio context, example program |
+| `voice/ebiten` (nested module) | `Player` on an Ebiten audio context, example program, `cmd/say` (speaks a line on the audio device through oto) |
 | `voice/cmd/voiceplay` | renders to WAV for listening |
 
 ## The `Sink` seam

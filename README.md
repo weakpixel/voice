@@ -11,6 +11,7 @@ Hear the starter voices:
 ```bash
 go run ./cmd/voiceplay -voice chirpy -o build/line.wav "Hello there, traveler!"
 go run ./cmd/voiceplay -voice flow -o build/flow.wav "Yo, listen up. I came from the hills, with nothing but skills."
+cd ebiten && go run ./cmd/say -voice chirpy "Hello there, traveler!"   # straight to the speakers
 ```
 
 ## Quick start: a game (Ebiten)
