@@ -40,8 +40,9 @@ const (
 const (
 	owner voice.Owner = 1
 
-	// bufferSize is the device buffer: notes start within about this much
-	// of their Sink call, so the typed text and the sound stay in step.
+	// bufferSize is both the device buffer and the player's read-ahead:
+	// notes start within about this much of their Sink call, so the typed
+	// text and the sound stay in step.
 	bufferSize = 50 * time.Millisecond
 	// tick is how often the speaker is updated from the wall clock.
 	tick = 5 * time.Millisecond
@@ -150,6 +151,12 @@ func say(ctx context.Context, o options, stdout io.Writer) error {
 	// only calls the stream's Sink methods, through the speaker.
 	player := device.NewPlayer(stream)
 	defer player.Close()
+	// The player reads the stream ahead in chunks of its buffer size, 0.5 s
+	// by default. The stream applies the Sink calls that arrived since the
+	// last Read at the start of the next block, so with the default every
+	// blip of half a second would start (and end) at once, smeared into one
+	// burst under the motif. Ebiten's Player sets the same buffer size.
+	player.SetBufferSize(playerBufferBytes(o.rate))
 	player.SetVolume(o.volume)
 	player.Play()
 
@@ -189,6 +196,13 @@ func say(ctx context.Context, o options, stdout io.Writer) error {
 	case <-time.After(tail):
 	}
 	return nil
+}
+
+// playerBufferBytes is the player's read-ahead in bytes: bufferSize of
+// float32 stereo frames at rate.
+func playerBufferBytes(rate int) int {
+	const frameBytes = 8 // synth.FormatFloat32
+	return int(int64(rate)*int64(bufferSize)/int64(time.Second)) * frameBytes
 }
 
 // loadVoice returns a starter voice by name, or a voice file with a loader
