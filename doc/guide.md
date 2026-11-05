@@ -142,7 +142,7 @@ A voice is how one character speaks. Six starter voices are built in, `voice.Pre
 
 An instrument has the fields of a [synth patch](#patch), with times in milliseconds: `wave` (`sine` default, `triangle`, `square`, `saw`, `noise`), `pulseWidth`, `detune`, `attackMs`, `decayMs`, `sustain`, `releaseMs`, `glideFrom`, `glideMs`, `vibratoRate`, `vibratoDepth`, `vibratoDelayMs`, `filter` (`lowpass` default, `highpass`, `bandpass`), `cutoff`, `resonance`, `gain`, `reverb`, `layers`, `unison`, `spread`. Or it is a sample: `sample` (a name your loader resolves), `root` (default 60), `loop`, `loopStart`, `loopEnd`, plus the envelope, glide, vibrato, filter, gain, reverb and layers fields (not unison). A wave and a sample together are an error.
 
-Loading (`LoadLanguage`, `LoadVoice` from an `io.Reader`, `LoadLanguageFS`, `LoadVoiceFS` from an `fs.FS`) reports malformed JSON and unknown fields on their own; otherwise all validation errors together, each with its JSON path, for example `voice: voice: instruments.vowel.sustain: 2 is outside 0 to 1`. A loaded `Voice` is a plain struct you may change; `Voice.Validate` checks it again.
+Loading (`LoadLanguage`, `LoadVoice` from an `io.Reader`, `LoadLanguageFS`, `LoadVoiceFS` from an `fs.FS`) reports malformed JSON and unknown fields on their own; otherwise all validation errors together, each with its JSON path, for example `voice: voice: instruments.vowel.sustain: 2 is outside 0 to 1`. Each of them is a `*voice.FieldError` (`File`, `Path`, `Message`); unwrap the joined error (its `Unwrap() []error`) to show each next to its field. A loaded `Voice` is a plain struct you may change; `Voice.Validate` checks it again.
 
 ### Percussion
 

@@ -22,3 +22,7 @@ jobs:
         run: git diff --exit-code
       - name: make wasm-test
         run: make wasm-test
+      - name: make editor
+        run: make editor
+      - name: make editor-test
+        run: make editor-test

@@ -114,7 +114,7 @@ func orDefault(p *float32, def float32) float32 {
 }
 
 func (f *voiceFile) build() (*Voice, error) {
-	errs := fieldErrors{prefix: "voice: voice"}
+	errs := fieldErrors{file: "voice"}
 	switch {
 	case f.Version == nil:
 		errs.add("version", "missing (must be 0)")
@@ -169,7 +169,7 @@ func (f *voiceFile) build() (*Voice, error) {
 
 // Validate reports every out-of-range field of v together, or nil.
 func (v *Voice) Validate() error {
-	errs := fieldErrors{prefix: "voice: voice"}
+	errs := fieldErrors{file: "voice"}
 	v.validate(&errs, instrumentNames[:])
 	return errors.Join(errs.errs...)
 }

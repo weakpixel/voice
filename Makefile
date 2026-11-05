@@ -1,6 +1,9 @@
 # Every Go module of the repository; each is formatted, vetted and tested on
 # its own. A nested sf2 module joins the list when it is added.
-MODULES = . ebiten
+MODULES = . ebiten editor
+
+# Stamped into the editor's index.html so browsers fetch a new build.
+VERSION ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
 # js/wasm. WASM_ENV runs go test under go_js_wasm_exec (Node): it puts the
 # exec wrapper on PATH and starts from an empty environment, because Node
@@ -25,6 +28,7 @@ wasm-test:
 	$(WASM_ENV) go vet ./...
 	$(WASM_ENV) go test ./...
 	cd ebiten && $(WASM_ENV) go vet ./...
+	cd editor && $(WASM_ENV) go vet ./...
 
 # Benchmarks of the synthesizer (and later the Speaker), native.
 .PHONY: bench
@@ -40,3 +44,26 @@ bench-wasm:
 .PHONY: patches
 patches:
 	go run ./cmd/voiceplay -patches -o build/patches.wav
+
+# The Voice Editor's static site in build/editor (what GitHub Pages serves).
+.PHONY: editor
+editor:
+	rm -rf build/editor
+	cd editor && go run ./cmd/mksite -out ../build/editor -version $(VERSION)
+	cd editor && GOOS=js GOARCH=wasm go build -trimpath -ldflags=-s -o ../build/editor/voice.wasm ./wasm
+
+# Unit tests of the editor page's scripts (Node, no packages).
+.PHONY: editor-test
+editor-test:
+	node --test editor/web/test/*.test.mjs
+
+# Serves build/editor on http://localhost:8000.
+.PHONY: editor-serve
+editor-serve: editor
+	node editor/smoke/serve.cjs build/editor 8000
+
+# Headless Chromium test of the built site (needs Playwright with Chromium,
+# found through NODE_PATH or installed globally).
+.PHONY: editor-smoke
+editor-smoke: editor
+	node editor/smoke/run.cjs build/editor

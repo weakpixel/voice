@@ -20,6 +20,7 @@ Every topic has one home; link to it instead of repeating it. If code and a doc 
 | `voice/voicetest` | same | stdlib, root | Test helpers such as a recording `Sink` |
 | `voice/cmd/voiceplay` | same | stdlib, the packages above | Renders a line or a voice's patches to WAV (`flag`, no Cobra) |
 | `voice/ebiten` | `github.com/weakpixel/voice/ebiten` (nested) | Ebiten `audio` (and its oto), the core | `Player` for a `synth.Stream`; example program; `cmd/say` (speaks a line on the audio device) |
+| `voice/editor` | `github.com/weakpixel/voice/editor` (nested) | oto, the core | The Voice Editor: a static web site (Go to js/wasm, plain HTML, CSS and JS, no npm) deployed to GitHub Pages; `session` (tested natively), `wasm` (the `syscall/js` bridge and oto playback), `cmd/mksite`, `web/`, `smoke/`. See `doc/editor.md` |
 | `voice/sf2` | `github.com/weakpixel/voice/sf2` (nested, optional) | go-meltysynth fork, the core | SoundFont backend implementing `voice.Sink` |
 
 The plan that describes the milestones is `ecs/plans/voice-library.plan.md` in the project's shared folder (not in this repository).
@@ -31,6 +32,10 @@ make all         # every module: go fmt, go vet, go test -race
 make wasm-test   # core tests under GOOS=js GOARCH=wasm (Node)
 make bench       # benchmarks of synth and the Speaker
 make bench-wasm  # the same under GOOS=js GOARCH=wasm (Node); numbers go into doc/design.md
+make editor      # the Voice Editor's site in build/editor
+make editor-test # node --test of the page's scripts
+make editor-smoke # headless Chromium test of the built site (Playwright); run once before an editor PR
+make editor-serve # serves build/editor on http://localhost:8000
 go run ./cmd/voiceplay -voice soft -o build/line.wav "Hello there, traveler!"
 go run ./cmd/voiceplay -patches -o build/patches.wav
 ```

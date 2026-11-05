@@ -64,7 +64,12 @@ Hear every feature of the synthesizer:
 go run ./cmd/voiceplay -patches -o build/patches.wav
 ```
 
+## Voice Editor
+
+A web page to edit voice files and hear them right away: `make editor-serve`, then open http://localhost:8000. See [doc/editor.md](doc/editor.md).
+
 ## Documentation
 
 - [doc/guide.md](doc/guide.md): user guide.
+- [doc/editor.md](doc/editor.md): the Voice Editor.
 - [doc/design.md](doc/design.md): how it is built and why, measured costs, what is not built yet.

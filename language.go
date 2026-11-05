@@ -157,7 +157,7 @@ func decodeStrict(r io.Reader, v any) error {
 }
 
 func (f *languageFile) build() (*Language, error) {
-	errs := fieldErrors{prefix: "voice: language"}
+	errs := fieldErrors{file: "language"}
 	l := &Language{name: f.Name, whitespacePause: defaultWhitespacePause}
 	switch {
 	case f.Version == nil:
