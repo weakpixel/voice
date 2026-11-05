@@ -1,0 +1,19 @@
+{
+  "version": 0,
+  "name": "robot",
+  "baseNote": 57,
+  "variation": 0,
+  "velocity": 0.8,
+  "length": 0.6,
+  "speed": 12,
+  "motifVolume": 0.15,
+  "breath": 0.2,
+  "seed": 8,
+  "instruments": {
+    "vowel": {"wave": "square", "pulseWidth": 0.15, "layers": [0, 7], "vibratoRate": 35, "vibratoDepth": 0.4, "attackMs": 2, "decayMs": 20, "sustain": 0.8, "releaseMs": 10, "cutoff": 2500, "resonance": 0.5, "gain": 0.4},
+    "sonorant": {"wave": "square", "pulseWidth": 0.3, "vibratoRate": 35, "vibratoDepth": 0.4, "attackMs": 2, "decayMs": 20, "sustain": 0.7, "releaseMs": 10, "cutoff": 1500, "gain": 0.4},
+    "fricative": {"wave": "noise", "filter": "highpass", "cutoff": 5000, "attackMs": 2, "decayMs": 25, "releaseMs": 5, "gain": 0.3},
+    "plosive": {"wave": "square", "pulseWidth": 0.1, "glideFrom": 12, "glideMs": 8, "attackMs": 2, "decayMs": 25, "releaseMs": 5, "gain": 0.45},
+    "motif": {"wave": "triangle", "attackMs": 5, "decayMs": 100, "sustain": 0.8, "releaseMs": 60, "gain": 0.8}
+  }
+}

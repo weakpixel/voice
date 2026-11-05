@@ -23,7 +23,9 @@ const DefaultBufferSize = 50 * time.Millisecond
 // The Ebiten player owns the stream's Read from its own goroutine; keep
 // calling only the stream's Sink methods (through a voice.Speaker) from the
 // game. Browsers start audio only after a user gesture; Ebiten resumes the
-// context on the first input, so sound starts then.
+// context on the first input, so sound starts then. Keep the Player
+// referenced while it plays: the audio library closes a player that is
+// garbage collected.
 type Player struct {
 	p *audio.Player
 }

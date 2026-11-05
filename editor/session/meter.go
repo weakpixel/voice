@@ -14,11 +14,13 @@ import (
 type meter struct {
 	r    io.Reader
 	peak atomic.Uint32 // math.Float32bits of the peak; positive floats order like their bits
+	read atomic.Int64  // bytes read in all
 }
 
 // Read reads from the stream and updates the peak. Allocates nothing.
 func (m *meter) Read(p []byte) (int, error) {
 	n, err := m.r.Read(p)
+	m.read.Add(int64(n))
 	var peak float32
 	for i := 0; i+4 <= n; i += 4 {
 		x := math.Float32frombits(binary.LittleEndian.Uint32(p[i:]))

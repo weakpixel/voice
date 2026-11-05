@@ -146,6 +146,10 @@ func (s *Session) Timeline() voice.Timeline { return s.sp.Timeline() }
 // SetVolume sets the stream's master gain, 0 to 1.
 func (s *Session) SetVolume(g float32) { s.stream.SetGain(min(max(g, 0), 1)) }
 
+// FramesRead returns how many frames the audio player has read in all. The
+// page watches it to tell a stalled audio output from a quiet line.
+func (s *Session) FramesRead() int64 { return s.meter.read.Load() / 8 }
+
 // Peak returns the loudest sample the audio player read since the previous
 // call, 0 to 1.
 func (s *Session) Peak() float32 { return s.meter.Peak() }

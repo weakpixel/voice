@@ -1,0 +1,19 @@
+{
+  "version": 0,
+  "name": "ghost",
+  "baseNote": 69,
+  "variation": 2.5,
+  "velocity": 0.7,
+  "length": 1,
+  "speed": 6,
+  "motifVolume": 0.35,
+  "breath": 1.2,
+  "seed": 9,
+  "instruments": {
+    "vowel": {"wave": "sine", "detune": 0.08, "glideFrom": -5, "glideMs": 180, "vibratoRate": 5.5, "vibratoDepth": 0.35, "vibratoDelayMs": 80, "attackMs": 90, "decayMs": 300, "sustain": 0.6, "releaseMs": 450, "reverb": 0.8, "gain": 0.3},
+    "sonorant": {"wave": "triangle", "glideFrom": -3, "glideMs": 150, "attackMs": 80, "decayMs": 250, "sustain": 0.5, "releaseMs": 400, "cutoff": 1500, "reverb": 0.8, "gain": 0.25},
+    "fricative": {"wave": "noise", "filter": "bandpass", "cutoff": 2500, "resonance": 0.3, "attackMs": 60, "decayMs": 200, "sustain": 0.2, "releaseMs": 300, "reverb": 0.8, "gain": 0.25},
+    "plosive": {"wave": "noise", "filter": "highpass", "cutoff": 3500, "attackMs": 15, "decayMs": 80, "releaseMs": 150, "reverb": 0.8, "gain": 0.2},
+    "motif": {"wave": "sine", "layers": [0, 12], "vibratoRate": 3, "vibratoDepth": 0.2, "attackMs": 600, "decayMs": 600, "sustain": 0.9, "releaseMs": 1500, "reverb": 0.9, "gain": 0.25}
+  }
+}

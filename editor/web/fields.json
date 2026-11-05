@@ -1,0 +1,105 @@
+{
+  "options": {
+    "wave": ["sine", "triangle", "square", "saw", "noise"],
+    "filter": ["lowpass", "highpass", "bandpass"],
+    "rest": ["none", "step", "beat", "bar"],
+    "division": [2, 3, 4],
+    "instruments": ["vowel", "sonorant", "fricative", "plosive", "motif"],
+    "percussion": ["clap", "hat", "kick", "rim", "shaker", "snare", "tom"]
+  },
+  "voice": [
+    {"key": "name", "label": "Name", "kind": "text", "group": "File", "help": "What this voice is called. Downloads use it as the file name."},
+    {"key": "language", "label": "Language", "kind": "text", "group": "File", "help": "Which made-up language the voice speaks. Leave it empty for the built-in one. Your game decides what the names mean."},
+    {"key": "baseNote", "label": "Base note", "kind": "number", "min": 24, "max": 108, "step": 1, "default": 64, "group": "Pitch", "help": "How high or low the voice sits overall. Lower numbers sound deeper, like a big creature; higher ones sound smaller and brighter. 60 is middle C on a piano."},
+    {"key": "pitch", "label": "Pitch", "kind": "number", "min": -24, "max": 24, "step": 0.1, "default": 0, "unit": "st", "group": "Pitch", "help": "Shifts the whole voice up or down. Use it to tell two characters with the same voice apart: +3 sounds a little younger, -5 a little older or bigger."},
+    {"key": "variation", "label": "Variation", "kind": "number", "min": 0, "max": 12, "step": 0.1, "default": 1, "unit": "st", "group": "Pitch", "help": "How much each syllable wanders up and down. 0 sounds flat and robotic, around 1 sounds natural, high values sound excited or sing-song."},
+    {"key": "speed", "label": "Speed", "kind": "number", "min": 1, "max": 60, "step": 0.5, "default": 14, "unit": "beats/s", "group": "Timing", "help": "How fast the character talks. Higher is quicker and more nervous, lower is slow and calm. Also sets how fast the text appears."},
+    {"key": "length", "label": "Note length", "kind": "number", "min": 0.05, "max": 1, "step": 0.01, "default": 0.8, "group": "Timing", "help": "How long each blip rings within its slot. Short values sound clipped and choppy, long values sound smooth and connected."},
+    {"key": "breath", "label": "Breath", "kind": "number", "min": 0, "max": 2, "step": 0.05, "default": 0.4, "unit": "s", "group": "Timing", "help": "How long the quiet background tone keeps ringing after the character stops talking, in seconds. 0 ends everything at once."},
+    {"key": "velocity", "label": "Velocity", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0.8, "group": "Mix", "help": "How loud the talking blips are."},
+    {"key": "motifVolume", "label": "Motif volume", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0.2, "group": "Mix", "help": "How loud the quiet background melody under the speech is. It follows the sentence: down at a full stop, up at a question. 0 turns it off."},
+    {"key": "pan", "label": "Pan", "kind": "number", "min": -1, "max": 1, "step": 0.05, "default": 0, "group": "Mix", "help": "Where the voice comes from: -1 is fully left, 0 is the middle, 1 is fully right."},
+    {"key": "seed", "label": "Seed", "kind": "int", "min": 0, "errorPath": "*", "step": 1, "default": 0, "group": "Mix", "help": "Changes the random choices behind the melody. The same text with the same seed always sounds the same; try another number for a different tune."}
+  ],
+  "instrument": [
+    {"key": "wave", "label": "Wave", "kind": "select", "options": "wave", "default": "sine", "group": "Oscillator", "help": "The basic tone of the instrument. Each choice has its own character; pick one and listen."},
+    {"key": "pulseWidth", "label": "Pulse width", "kind": "number", "min": 0.01, "max": 0.99, "step": 0.01, "default": 0.5, "zeroIsDefault": true, "group": "Oscillator", "help": "Only for the square wave. 0.5 sounds hollow like a clarinet; values near 0.1 or 0.9 sound thin and nasal, like an old handheld console."},
+    {"key": "detune", "label": "Detune", "kind": "number", "min": -24, "max": 24, "uiMin": -1, "uiMax": 1, "step": 0.01, "default": 0, "unit": "st", "group": "Oscillator", "help": "Adds a second copy of the tone, slightly out of tune. Small values (0.05 to 0.2) make it thicker and warmer; large values sound like two notes at once."},
+    {"key": "unison", "label": "Unison", "kind": "int", "min": 0, "max": 7, "step": 1, "default": 0, "group": "Oscillator", "help": "Plays several copies of the tone at once, like a choir or a string section instead of one singer. 0 or 1 is a single tone."},
+    {"key": "spread", "label": "Spread", "kind": "number", "min": 0, "max": 12, "uiMax": 1, "step": 0.01, "default": 0, "unit": "st", "group": "Oscillator", "help": "How far apart the unison copies are tuned. Small values sound lush, large values sound wobbly and out of tune. Needs Unison above 1."},
+    {"key": "layers", "label": "Layers", "kind": "list", "min": -24, "max": 24, "maxItems": 4, "group": "Oscillator", "help": "Extra notes played together with every blip, like a chord. 12 adds the octave above, -12 the octave below, 7 a fifth. Empty plays one note."},
+    {"key": "attackMs", "label": "Attack", "kind": "number", "min": 0, "max": 10000, "uiMax": 1000, "step": 1, "default": 0, "unit": "ms", "group": "Envelope", "help": "How quickly a blip fades in, in milliseconds. 0 starts with a click-like snap; larger values swell in softly, like a bowed string."},
+    {"key": "decayMs", "label": "Decay", "kind": "number", "min": 0, "max": 10000, "uiMax": 2000, "step": 1, "default": 0, "unit": "ms", "group": "Envelope", "help": "How long a blip takes to fall from its loudest point to the Sustain level. Short sounds plucky; long sounds like a ringing bell."},
+    {"key": "sustain", "label": "Sustain", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0, "group": "Envelope", "help": "How loud a blip stays while it is held. 0 lets it die away after the decay, like a pluck; 1 keeps it at full volume, like an organ."},
+    {"key": "releaseMs", "label": "Release", "kind": "number", "min": 0, "max": 10000, "uiMax": 3000, "step": 1, "default": 0, "unit": "ms", "group": "Envelope", "help": "How long a blip fades out after it ends. Short stops it dead; long lets it ring on and blur into the next one."},
+    {"key": "glideFrom", "label": "Glide from", "kind": "number", "min": -24, "max": 24, "step": 0.5, "default": 0, "unit": "st", "group": "Pitch", "help": "Each blip starts this many semitones away and slides to its real pitch. Negative values swoop up into the note, positive ones fall into it."},
+    {"key": "glideMs", "label": "Glide time", "kind": "number", "min": 0, "max": 10000, "uiMax": 500, "step": 1, "default": 0, "unit": "ms", "group": "Pitch", "help": "How long that slide takes. Short sounds like a quick chirp, long sounds like a lazy wail."},
+    {"key": "vibratoRate", "label": "Vibrato rate", "kind": "number", "min": 0, "max": 50, "uiMax": 12, "step": 0.1, "default": 0, "unit": "Hz", "group": "Pitch", "help": "How fast the pitch wobbles, in wobbles per second. 5 to 7 sounds like a singer; fast values sound like a trill or a robot. 0 is no wobble."},
+    {"key": "vibratoDepth", "label": "Vibrato depth", "kind": "number", "min": -12, "max": 12, "uiMin": 0, "uiMax": 1, "step": 0.01, "default": 0, "unit": "st", "group": "Pitch", "help": "How wide the pitch wobble is. Small values add warmth, large values sound wobbly or drunk. Needs a Vibrato rate above 0."},
+    {"key": "vibratoDelayMs", "label": "Vibrato delay", "kind": "number", "min": 0, "max": 10000, "uiMax": 1000, "step": 1, "default": 0, "unit": "ms", "group": "Pitch", "help": "How long a blip holds steady before the wobble starts, like a singer who adds vibrato at the end of a note."},
+    {"key": "filter", "label": "Filter", "kind": "select", "options": "filter", "default": "lowpass", "group": "Filter", "help": "What the filter takes away from the sound. It only works while the Cutoff is above 0."},
+    {"key": "cutoff", "label": "Cutoff", "kind": "number", "min": 0, "max": 100000, "uiMax": 12000, "step": 10, "default": 0, "unit": "Hz", "group": "Filter", "help": "Where the filter acts, in Hz. With lowpass, lower values sound darker and more muffled; with highpass, higher values sound thinner. 0 turns the filter off."},
+    {"key": "resonance", "label": "Resonance", "kind": "number", "min": 0, "max": 0.99, "maxBelow": 1, "step": 0.01, "default": 0, "group": "Filter", "help": "Adds a whistling peak at the cutoff. Low values are subtle; high values sound squelchy and electronic."},
+    {"key": "gain", "label": "Gain", "kind": "number", "min": 0, "max": 4, "uiMin": 0.01, "uiMax": 2, "step": 0.01, "default": 1, "zeroIsDefault": true, "group": "Output", "help": "How loud this instrument is compared with the others."},
+    {"key": "reverb", "label": "Reverb", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0, "group": "Output", "help": "How much echo of a room the instrument gets. 0 is dry and close; higher values sound far away or in a big hall."},
+    {"key": "sample", "label": "Sample", "kind": "text", "group": "Sample", "sample": true, "help": "Use a recorded sound file instead of a generated tone. Your game loads the file. The editor cannot play samples yet."},
+    {"key": "root", "label": "Root", "kind": "number", "min": 0, "max": 127, "step": 1, "default": 60, "zeroIsDefault": true, "group": "Sample", "sample": true, "help": "The note the recording sounds at when played unchanged, so the editor can tune it to other notes."},
+    {"key": "loop", "label": "Loop", "kind": "bool", "default": false, "group": "Sample", "sample": true, "help": "Repeats part of the recording for as long as the note lasts, so a short sample can hold a long note."},
+    {"key": "loopStart", "label": "Loop start", "kind": "int", "min": 0, "step": 1, "default": 0, "unit": "frame", "group": "Sample", "sample": true, "help": "Where the repeated part of the recording starts, counted in audio frames."},
+    {"key": "loopEnd", "label": "Loop end", "kind": "int", "min": 0, "step": 1, "default": 0, "unit": "frame", "errorPath": "loopStart", "group": "Sample", "sample": true, "help": "Where the repeated part ends, counted in audio frames. 0 means the end of the file."}
+  ],
+  "percussion": [
+    {"key": "base", "label": "Based on", "kind": "select", "options": "percussion", "default": "", "group": "Sound", "help": "A built-in drum to start from. The settings below change it; anything you leave alone keeps the drum's own value."},
+    {"key": "note", "label": "Note", "kind": "number", "min": 0, "max": 127, "step": 1, "default": 60, "group": "Sound", "help": "How high the drum is tuned. Lower is deeper and boomier, higher is tighter and snappier."}
+  ],
+  "rhythm": [
+    {"key": "bpm", "label": "Tempo", "kind": "number", "min": 40, "max": 240, "step": 1, "default": 90, "unit": "bpm", "group": "Grid", "help": "How fast the beat is, in beats per minute. 60 is calm, 90 is a walk, 140 is energetic."},
+    {"key": "division", "label": "Steps per beat", "kind": "select", "options": "division", "default": 4, "group": "Grid", "help": "How finely each beat is divided. Syllables land on these steps, so more steps let the speech flow faster."},
+    {"key": "swing", "label": "Swing", "kind": "number", "min": 0, "max": 0.5, "step": 0.01, "default": 0, "group": "Grid", "help": "Pushes every second step a little later for a bouncy, shuffling feel. 0 is straight, 0.3 swings clearly."},
+    {"key": "countIn", "label": "Count-in", "kind": "int", "min": 0, "max": 2, "step": 1, "default": 0, "unit": "bars", "group": "Grid", "help": "How many bars of beat play before the character starts talking."},
+    {"key": "rest.pause", "label": "Rest after , ; :", "kind": "select", "options": "rest", "default": "beat", "group": "Rests", "help": "How long the character waits after a comma, semicolon or colon before talking on."},
+    {"key": "rest.end", "label": "Rest after . ? !", "kind": "select", "options": "rest", "default": "bar", "group": "Rests", "help": "How long the character waits after a full stop, question mark or exclamation mark before the next sentence."},
+    {"key": "beatVolume", "label": "Beat volume", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0.8, "group": "Beat", "help": "How loud the drums are."}
+  ],
+  "optionHelp": {
+    "wave": {
+      "sine": "Soft and pure, like a whistle or a flute.",
+      "triangle": "Gentle with a little edge, like a soft recorder or an old game console's bass.",
+      "square": "Hollow and buzzy, the classic retro video game sound.",
+      "saw": "Bright and brassy, the buzziest of the tones.",
+      "noise": "A hiss with no pitch, like air or static. Good for s, sh and f sounds."
+    },
+    "filter": {
+      "lowpass": "Keeps the low part and cuts the bright top, so it sounds darker and more muffled.",
+      "highpass": "Keeps the high part and cuts the low end, so it sounds thinner, like through a phone.",
+      "bandpass": "Keeps only a narrow middle band, so it sounds nasal, like through a tube."
+    },
+    "rest": {
+      "none": "No extra wait; talking goes straight on.",
+      "step": "A short wait, about as long as the punctuation's natural pause.",
+      "beat": "Waits for the next beat.",
+      "bar": "Waits for the next bar (four beats), a long pause."
+    },
+    "division": {
+      "2": "Two steps per beat (eighth notes): slow, even speech.",
+      "3": "Three steps per beat (triplets): a rolling, waltzing feel.",
+      "4": "Four steps per beat (sixteenth notes): the quickest, most detailed flow."
+    },
+    "instruments": {
+      "vowel": "Plays the vowels (a, e, i, o, u). Every other instrument copies it unless it has its own sound.",
+      "sonorant": "Plays the humming consonants (m, n, l, r).",
+      "fricative": "Plays the hissing consonants (s, f, sh, z).",
+      "plosive": "Plays the popping consonants (p, t, k, b, d, g).",
+      "motif": "Plays the quiet background melody under the speech."
+    },
+    "percussion": {
+      "clap": "A hand clap.",
+      "hat": "A short, ticking hi-hat.",
+      "kick": "A deep bass drum thump.",
+      "rim": "A dry click on the drum's rim.",
+      "shaker": "A soft shaker rattle.",
+      "snare": "A sharp snare drum crack.",
+      "tom": "A round, mid-pitched tom drum."
+    }
+  }
+}

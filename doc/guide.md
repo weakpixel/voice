@@ -89,7 +89,7 @@ Symbols must be unique across phonemes and punctuation, compared case-insensitiv
 
 ## Voices (`*.voice.json`)
 
-A voice is how one character speaks. Six starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"`, `"divine"`, `"flow"` and `"verse"`:
+A voice is how one character speaks. Ten starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"`, `"divine"`, `"flow"`, `"verse"`, `"warrior"`, `"robot"`, `"ghost"` and `"elder"`:
 
 | Voice | Sound |
 | --- | --- |
@@ -99,6 +99,10 @@ A voice is how one character speaks. Six starter voices are built in, `voice.Pre
 | `divine` | very low and slow, orchestral: each syllable a chord (root, octave below, fifth above) of five-copy unison saws, long swells, deep in the reverb, a slow pad underneath |
 | `flow` | rhythmic, like a rapper: low punchy square blips on a 92 bpm grid of sixteenths with a light swing, over kick, snare and hi-hat after one bar of count-in |
 | `verse` | the rhythmic delivery of `flow` without a beat: 96 bpm sixteenths, accents and rests only, starting at once |
+| `warrior` | very low, harsh and barking: detuned saw vowels an octave doubled that fall into each note, short clipped syllables, wide pitch swings, loud throaty rasps |
+| `robot` | monotone (no pitch variation): thin buzzing square blips with a fifth on top and a fast metallic vibrato, sharp hiss and zaps |
+| `ghost` | high, slow and floating: sine notes that slide up into place, a wavering vibrato, breathy whispers, everything deep in the reverb |
+| `elder` | low and slow with a shaky voice: soft triangle blips with a wide, fast tremble, a slight sag at each note's start, a warm pad underneath |
 
 ```json
 {

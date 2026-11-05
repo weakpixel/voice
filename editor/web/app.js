@@ -1,8 +1,12 @@
-// The Voice Editor page: the voice file as text, live validation through
-// the Go session (voice.wasm), and playback of a test line by the real
-// Speaker on a synth stream that oto plays.
+// The Voice Editor page: the voice file as a form (Visual) or as text
+// (Source), live validation through the Go session (voice.wasm), and
+// playback of a test line by the real Speaker on a synth stream that oto
+// plays. The text is the document; the form edits it through format.js.
 
 import { utf8, revealedText, locatePath, downloadName, docName, looksLikeVoice } from "./text.js";
+import { format } from "./format.js";
+import { VisualEditor } from "./visual.js";
+import { installTooltips } from "./tooltip.js";
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const docArea = /** @type {HTMLTextAreaElement} */ ($("doc"));
@@ -10,6 +14,7 @@ const lineInput = /** @type {HTMLInputElement} */ ($("line"));
 const starter = /** @type {HTMLSelectElement} */ ($("starter"));
 const fileInput = /** @type {HTMLInputElement} */ ($("file"));
 const volume = /** @type {HTMLInputElement} */ ($("volume"));
+const replay = /** @type {HTMLInputElement} */ ($("replay"));
 const buttons = {
   play: /** @type {HTMLButtonElement} */ ($("play")),
   pause: /** @type {HTMLButtonElement} */ ($("pause")),
@@ -24,6 +29,13 @@ const VALIDATE_DELAY = 250; // ms after the last keystroke
 let api = null;
 let openedName = ""; // file name of the opened document, "" for a starter or a new one
 let voiceOK = false;
+/** @type {VisualEditor | null} */
+let visual = null;
+let view = "visual"; // "visual" or "source"
+/** The document at the last commit (an edit that ended), to tell what changed. */
+let committedDoc = null;
+const HISTORY_SIZE = 200;
+const history = { stack: /** @type {string[]} */ ([]), index: -1 };
 
 // ---- draft (per-viewer convenience; the page works without storage) ----
 
@@ -38,7 +50,10 @@ function loadDraft() {
 
 function saveDraft() {
   try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ doc: docArea.value, line: lineInput.value, opened: openedName, volume: volume.value }));
+    localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ doc: docArea.value, line: lineInput.value, opened: openedName, volume: volume.value, view, replay: replay.checked }),
+    );
   } catch {
     // storage blocked or full: the draft is a convenience only
   }
@@ -46,13 +61,43 @@ function saveDraft() {
 
 // ---- document ----
 
+/** @returns {any} the document as an object, null while the text is not JSON */
+function parsed() {
+  try {
+    const d = JSON.parse(docArea.value);
+    return d !== null && typeof d === "object" && !Array.isArray(d) ? d : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Replaces the document, e.g. after opening a file or picking a starter. */
 function setDocument(text, name) {
-  docArea.value = text;
   openedName = name;
+  docArea.value = text;
   docArea.scrollTop = 0;
   validate();
+  refreshVisual();
+  record();
   saveDraft();
+  committedDoc = parsed(); // a new document does not start playing by itself
+}
+
+/** Shows text as the document and commits it (history, draft, replay). */
+function applyText(text, fromHistory = false) {
+  docArea.value = text;
+  validate();
+  refreshVisual();
+  commit(fromHistory);
+}
+
+/** An edit ended: remember it for undo, save the draft, replay if wanted. */
+function commit(fromHistory = false) {
+  if (!fromHistory) record();
+  saveDraft();
+  const doc = parsed();
+  maybeReplay(committedDoc, doc);
+  committedDoc = doc;
 }
 
 let validateTimer = 0;
@@ -60,8 +105,88 @@ function scheduleValidate() {
   clearTimeout(validateTimer);
   validateTimer = setTimeout(() => {
     validate();
-    saveDraft();
+    commit();
   }, VALIDATE_DELAY);
+}
+
+// ---- undo and redo: snapshots of the text ----
+
+function record() {
+  const text = docArea.value;
+  if (history.stack[history.index] === text) return;
+  history.stack = history.stack.slice(0, history.index + 1);
+  history.stack.push(text);
+  if (history.stack.length > HISTORY_SIZE) history.stack.shift();
+  history.index = history.stack.length - 1;
+  updateUndo();
+}
+
+function step(by) {
+  clearTimeout(validateTimer);
+  record(); // a source edit still waiting for its debounce
+  const i = history.index + by;
+  if (i < 0 || i >= history.stack.length) return;
+  history.index = i;
+  applyText(history.stack[i], true);
+  updateUndo();
+}
+
+function updateUndo() {
+  /** @type {HTMLButtonElement} */ ($("undo")).disabled = history.index <= 0;
+  /** @type {HTMLButtonElement} */ ($("redo")).disabled = history.index >= history.stack.length - 1;
+}
+
+// ---- views ----
+
+function setView(v) {
+  view = v === "source" ? "source" : "visual";
+  for (const b of document.querySelectorAll("[data-view]")) {
+    const on = /** @type {HTMLElement} */ (b).dataset.view === view;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", String(on));
+  }
+  $("visual").hidden = view !== "visual";
+  docArea.hidden = view !== "source";
+  refreshVisual();
+  saveDraft();
+}
+
+/** Redraws the form from the text (when the Visual tab shows). */
+function refreshVisual() {
+  if (!visual || view !== "visual") return;
+  const doc = parsed();
+  if (doc) {
+    visual.render(doc);
+    return;
+  }
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.textContent = "The JSON has a syntax error, so the form cannot show it. Fix it in Source (the problem is listed on the right).";
+  $("visual").replaceChildren(note);
+}
+
+/** The form changed the document: write it as text and check it. */
+function onVisualChange(doc, how) {
+  docArea.value = format(doc);
+  validate();
+  if (how.commit) commit();
+}
+
+/** Without instruments, percussion sounds and names: what decides timing and pitch. */
+function composition(doc) {
+  if (!doc) return "";
+  const { instruments, percussion, name, language, ...rest } = doc;
+  return JSON.stringify(rest);
+}
+
+/** Plays the line after an edit, unless replay is off; an instrument edit
+ * during a line is heard on its next notes, so the line keeps playing. */
+function maybeReplay(prev, next) {
+  // Before the first Play there is no audio yet (it starts on a click).
+  if (!replay.checked || !voiceOK || !next || !api || !api.audioReady()) return;
+  if (JSON.stringify(prev) === JSON.stringify(next)) return;
+  if (playing && composition(prev) === composition(next)) return;
+  play();
 }
 
 /** Loads the document in Go: a valid one becomes the voice at once (its
@@ -77,6 +202,7 @@ function validate() {
   v.textContent = r.ok ? "Valid" : `${(r.problems || []).length} problem${(r.problems || []).length === 1 ? "" : "s"}`;
   v.className = `validity ${r.ok ? "ok" : "bad"}`;
   buttons.play.disabled = !r.ok;
+  visual?.showProblems(r.problems || []);
 }
 
 /** @param {{path: string, message: string}[]} problems */
@@ -289,6 +415,20 @@ function wire() {
     fileInput.value = "";
   });
   $("download").addEventListener("click", download);
+  $("undo").addEventListener("click", () => step(-1));
+  $("redo").addEventListener("click", () => step(1));
+  for (const b of document.querySelectorAll("[data-view]")) {
+    b.addEventListener("click", () => setView(/** @type {HTMLElement} */ (b).dataset.view));
+  }
+  replay.addEventListener("change", saveDraft);
+  document.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.target === lineInput) return;
+    const k = e.key.toLowerCase();
+    if (k === "z" || k === "y") {
+      e.preventDefault();
+      step(k === "y" || e.shiftKey ? 1 : -1);
+    }
+  });
   $("copy").addEventListener("click", copy);
   starter.addEventListener("change", async () => {
     const name = starter.value;
@@ -348,6 +488,7 @@ async function startGo() {
 
 async function main() {
   wire();
+  installTooltips();
   buttons.play.disabled = true;
   const draft = loadDraft();
   const [names] = await Promise.all([fillStarters()]);
@@ -356,6 +497,7 @@ async function main() {
     lineInput.value = draft.line || lineInput.value;
     openedName = draft.opened || "";
     volume.value = draft.volume || volume.value;
+    replay.checked = draft.replay ?? true;
   } else if (names.length) {
     docArea.value = await loadStarter(names[0]);
   }
@@ -368,7 +510,16 @@ async function main() {
     return;
   }
   api.setVolume(Number(volume.value));
+  try {
+    const fields = await (await fetch("fields.json")).json();
+    visual = new VisualEditor($("visual"), fields, api.percussionDefaults(), onVisualChange);
+  } catch (e) {
+    toast(`The visual editor could not load: ${e}`);
+  }
   validate();
+  record();
+  committedDoc = parsed();
+  setView(draft?.view || "visual");
   setTransport();
   document.body.dataset.ready = "true";
 }

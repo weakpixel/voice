@@ -1,0 +1,19 @@
+{
+  "version": 0,
+  "name": "elder",
+  "baseNote": 52,
+  "variation": 1.2,
+  "velocity": 0.75,
+  "length": 0.9,
+  "speed": 7,
+  "motifVolume": 0.25,
+  "breath": 0.7,
+  "seed": 10,
+  "instruments": {
+    "vowel": {"reverb": 0.25, "wave": "triangle", "detune": 0.15, "glideFrom": 1.5, "glideMs": 60, "vibratoRate": 7.5, "vibratoDepth": 0.5, "vibratoDelayMs": 40, "attackMs": 20, "decayMs": 160, "sustain": 0.5, "releaseMs": 120, "cutoff": 1600, "gain": 0.6},
+    "sonorant": {"reverb": 0.25, "wave": "triangle", "vibratoRate": 7.5, "vibratoDepth": 0.4, "attackMs": 20, "decayMs": 130, "sustain": 0.4, "releaseMs": 100, "cutoff": 1000, "gain": 0.5},
+    "fricative": {"reverb": 0.25, "wave": "noise", "cutoff": 2500, "attackMs": 25, "decayMs": 120, "sustain": 0.15, "releaseMs": 80, "gain": 0.3},
+    "plosive": {"reverb": 0.25, "wave": "triangle", "attackMs": 4, "decayMs": 40, "releaseMs": 30, "cutoff": 800, "gain": 0.45},
+    "motif": {"reverb": 0.35, "wave": "sine", "layers": [0, -12], "attackMs": 300, "decayMs": 400, "sustain": 0.8, "releaseMs": 700, "vibratoRate": 4, "vibratoDepth": 0.1, "gain": 0.6}
+  }
+}
