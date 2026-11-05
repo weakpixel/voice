@@ -4,7 +4,7 @@ A web page to edit `*.voice.json` files and hear them while you type. It runs en
 
 ## Using it
 
-- **New from starter** opens one of the six starter voices as a new document. **Open** (or dropping a file on the page, or pasting voice JSON anywhere outside the text fields) opens a `*.voice.json` file.
+- **New from starter** opens one of the starter voices as a new document. **Open** (or dropping a file on the page, or pasting voice JSON anywhere outside the text fields) opens a `*.voice.json` file.
 - The left panel shows the voice in two tabs. **Visual** is a form: sliders with a number field for numbers, dropdowns for the wave, filter, rests and steps per beat, checkboxes for on and off. Instruments have one tab each; an instrument other than the vowel can use the vowel's sound (its checkbox cleared, the key left out of the file) or its own. **Rhythm** turns the beat grid on and edits the beat's patterns (`x` hit, `-` ghost, `.` rest); **Percussion** adds built-in or new sounds. A field the file leaves out shows the library's default, dimmed; changing it writes the field, ↺ removes it again. Hover a field for what it changes in plain words; a dropdown's tooltip also explains each choice, and so do the instrument tabs and the drum names.
 - **Source** is the same voice as JSON text, for anything the form does not cover (accents, sample loops). Both tabs edit one document: the form writes the text in the starter voices' style, keeping the order of the keys you wrote.
 - Every change is checked by the library itself: **Problems** lists what is wrong, each with the JSON path of its value, and the form marks the field; click a problem to select it in the text. The file format is in the [guide](guide.md#voices-voicejson).

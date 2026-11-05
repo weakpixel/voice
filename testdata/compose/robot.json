@@ -1,0 +1,376 @@
+{
+  "Notes": [
+    {
+      "On": 0,
+      "Off": 30000002,
+      "Instrument": 2,
+      "Note": 57,
+      "Velocity": 0.32000002,
+      "Pan": 0
+    },
+    {
+      "On": 0,
+      "Off": 683333337,
+      "Instrument": 4,
+      "Note": 45,
+      "Velocity": 0.15,
+      "Pan": 0
+    },
+    {
+      "On": 50000001,
+      "Off": 100000003,
+      "Instrument": 0,
+      "Note": 59,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 133333335,
+      "Off": 173333337,
+      "Instrument": 1,
+      "Note": 58,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 200000002,
+      "Off": 240000005,
+      "Instrument": 1,
+      "Note": 58,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 266666670,
+      "Off": 316666672,
+      "Instrument": 0,
+      "Note": 55,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 391666670,
+      "Off": 426666671,
+      "Instrument": 2,
+      "Note": 57,
+      "Velocity": 0.4,
+      "Pan": 0
+    },
+    {
+      "On": 450000002,
+      "Off": 500000004,
+      "Instrument": 0,
+      "Note": 59,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 533333336,
+      "Off": 573333338,
+      "Instrument": 1,
+      "Note": 56,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 600000003,
+      "Off": 650000005,
+      "Instrument": 0,
+      "Note": 59,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 891666670,
+      "Off": 916666671,
+      "Instrument": 3,
+      "Note": 60,
+      "Velocity": 0.864,
+      "Pan": 0
+    },
+    {
+      "On": 891666670,
+      "Off": 1479166672,
+      "Instrument": 4,
+      "Note": 49,
+      "Velocity": 0.18,
+      "Pan": 0
+    },
+    {
+      "On": 933333337,
+      "Off": 973333339,
+      "Instrument": 1,
+      "Note": 57,
+      "Velocity": 0.96000004,
+      "Pan": 0
+    },
+    {
+      "On": 1000000004,
+      "Off": 1050000006,
+      "Instrument": 0,
+      "Note": 58,
+      "Velocity": 0.96000004,
+      "Pan": 0
+    },
+    {
+      "On": 1083333338,
+      "Off": 1118333339,
+      "Instrument": 2,
+      "Note": 58,
+      "Velocity": 0.57600003,
+      "Pan": 0
+    },
+    {
+      "On": 1141666670,
+      "Off": 1191666672,
+      "Instrument": 0,
+      "Note": 60,
+      "Velocity": 0.96000004,
+      "Pan": 0
+    },
+    {
+      "On": 1225000003,
+      "Off": 1265000006,
+      "Instrument": 1,
+      "Note": 59,
+      "Velocity": 0.96000004,
+      "Pan": 0
+    },
+    {
+      "On": 1291666671,
+      "Off": 1354166674,
+      "Instrument": 0,
+      "Note": 60,
+      "Velocity": 0.96000004,
+      "Pan": 0
+    },
+    {
+      "On": 1395833338,
+      "Off": 1445833341,
+      "Instrument": 1,
+      "Note": 57,
+      "Velocity": 0.96000004,
+      "Pan": 0
+    },
+    {
+      "On": 1854166672,
+      "Off": 1904166674,
+      "Instrument": 0,
+      "Note": 57,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 1854166672,
+      "Off": 2904166672,
+      "Instrument": 4,
+      "Note": 54,
+      "Velocity": 0.15,
+      "Pan": 0
+    },
+    {
+      "On": 1937500006,
+      "Off": 1977500008,
+      "Instrument": 1,
+      "Note": 56,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 2004166673,
+      "Off": 2054166675,
+      "Instrument": 0,
+      "Note": 59,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 2129166673,
+      "Off": 2179166675,
+      "Instrument": 0,
+      "Note": 60,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 2212500007,
+      "Off": 2277500007,
+      "Instrument": 0,
+      "Note": 56,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 2362500003,
+      "Off": 2402500005,
+      "Instrument": 1,
+      "Note": 58,
+      "Velocity": 0.8,
+      "Pan": 0
+    },
+    {
+      "On": 2429166670,
+      "Off": 2522916673,
+      "Instrument": 0,
+      "Note": 56,
+      "Velocity": 0.71999997,
+      "Pan": 0
+    },
+    {
+      "On": 2554166670,
+      "Off": 2619791671,
+      "Instrument": 2,
+      "Note": 60,
+      "Velocity": 0.38400003,
+      "Pan": 0
+    },
+    {
+      "On": 2641666669,
+      "Off": 2688541670,
+      "Instrument": 3,
+      "Note": 64,
+      "Velocity": 0.50399995,
+      "Pan": 0
+    }
+  ],
+  "Reveals": [
+    {
+      "At": 0,
+      "Offset": 1
+    },
+    {
+      "At": 50000001,
+      "Offset": 2
+    },
+    {
+      "At": 133333335,
+      "Offset": 3
+    },
+    {
+      "At": 200000002,
+      "Offset": 4
+    },
+    {
+      "At": 266666670,
+      "Offset": 5
+    },
+    {
+      "At": 350000003,
+      "Offset": 6
+    },
+    {
+      "At": 391666670,
+      "Offset": 8
+    },
+    {
+      "At": 450000002,
+      "Offset": 9
+    },
+    {
+      "At": 533333336,
+      "Offset": 10
+    },
+    {
+      "At": 600000003,
+      "Offset": 11
+    },
+    {
+      "At": 683333337,
+      "Offset": 12
+    },
+    {
+      "At": 850000003,
+      "Offset": 13
+    },
+    {
+      "At": 891666670,
+      "Offset": 14
+    },
+    {
+      "At": 933333337,
+      "Offset": 15
+    },
+    {
+      "At": 1000000004,
+      "Offset": 16
+    },
+    {
+      "At": 1083333338,
+      "Offset": 17
+    },
+    {
+      "At": 1141666670,
+      "Offset": 18
+    },
+    {
+      "At": 1225000003,
+      "Offset": 19
+    },
+    {
+      "At": 1291666671,
+      "Offset": 20
+    },
+    {
+      "At": 1395833338,
+      "Offset": 21
+    },
+    {
+      "At": 1479166672,
+      "Offset": 22
+    },
+    {
+      "At": 1812500006,
+      "Offset": 23
+    },
+    {
+      "At": 1854166672,
+      "Offset": 24
+    },
+    {
+      "At": 1937500006,
+      "Offset": 25
+    },
+    {
+      "At": 2004166673,
+      "Offset": 26
+    },
+    {
+      "At": 2087500007,
+      "Offset": 27
+    },
+    {
+      "At": 2129166673,
+      "Offset": 28
+    },
+    {
+      "At": 2212500007,
+      "Offset": 30
+    },
+    {
+      "At": 2320833336,
+      "Offset": 31
+    },
+    {
+      "At": 2362500003,
+      "Offset": 32
+    },
+    {
+      "At": 2429166670,
+      "Offset": 33
+    },
+    {
+      "At": 2554166670,
+      "Offset": 34
+    },
+    {
+      "At": 2641666669,
+      "Offset": 35
+    },
+    {
+      "At": 2704166669,
+      "Offset": 36
+    }
+  ],
+  "Duration": 2904166672,
+  "TextLen": 36
+}
