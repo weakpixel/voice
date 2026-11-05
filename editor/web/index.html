@@ -57,12 +57,20 @@
         <button id="pause" type="button" disabled><span class="icon" style="--icon: url(icons/player-pause.svg)"></span><span class="label">Pause</span></button>
         <button id="skip" type="button" disabled><span class="icon" style="--icon: url(icons/player-track-next.svg)"></span>Skip</button>
         <button id="stop" type="button" disabled><span class="icon" style="--icon: url(icons/player-stop.svg)"></span>Stop</button>
+        <button id="wav" type="button" title="Download the test line as a WAV sound file"><span class="icon" style="--icon: url(icons/download.svg)"></span>WAV</button>
         <label class="check" title="Play the line again after an edit (instrument edits are heard live while it plays)"><input id="replay" type="checkbox" checked> Replay on change</label>
         <label class="volume" title="Volume"><span class="icon" style="--icon: url(icons/volume.svg)"></span>
           <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
         </label>
       </div>
       <div class="typewriter" id="typewriter" aria-live="polite"><span id="shown"></span><span id="hidden" class="hidden-text"></span></div>
+      <div class="lanes">
+        <canvas id="roll" title="The line's notes: one row per semitone, coloured by instrument; drums in the band at the bottom; ticks at the top where the text moves on"></canvas>
+        <canvas id="wave" title="The sound of the line as rendered (with the reverb ringing out)"></canvas>
+        <div class="legend" aria-hidden="true">
+          <span style="--c: var(--inst-vowel)">vowel</span><span style="--c: var(--inst-sonorant)">sonorant</span><span style="--c: var(--inst-fricative)">fricative</span><span style="--c: var(--inst-plosive)">plosive</span><span style="--c: var(--inst-motif)">motif</span><span style="--c: var(--inst-percussion)">drums</span>
+        </div>
+      </div>
       <div class="meter" aria-hidden="true"><div id="meter-bar" class="meter-bar"></div></div>
       <div class="status-line"><span id="time">0.00 s</span> <span id="events"></span></div>
       <h3>Problems</h3>

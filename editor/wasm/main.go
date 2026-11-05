@@ -24,6 +24,10 @@ type bridge struct {
 	audio *audio
 	// loaded is whether the last voice document loaded; lines need one.
 	loaded bool
+	// render is the offline render in progress, nil if none.
+	render *session.LineRender
+	// left and right are the last finished render, for wav().
+	left, right []float32
 }
 
 func main() {
@@ -38,6 +42,10 @@ func main() {
 		"loadLanguage": js.FuncOf(b.loadLanguage),
 		"say":          js.FuncOf(b.say),
 		"update":       js.FuncOf(b.update),
+		"audition":     js.FuncOf(b.audition),
+		"renderStart":  js.FuncOf(b.renderStart),
+		"renderStep":   js.FuncOf(b.renderStep),
+		"wav":          js.FuncOf(b.wav),
 		"skip":         js.FuncOf(func(js.Value, []js.Value) any { s.Skip(); return nil }),
 		"stop":         js.FuncOf(func(js.Value, []js.Value) any { s.Stop(); return nil }),
 		"pause":        js.FuncOf(func(js.Value, []js.Value) any { s.Pause(); return nil }),
@@ -109,12 +117,8 @@ type sayOptions struct {
 	MuteBeat bool    `json:"muteBeat"`
 }
 
-// say(text, options) starts a line with the current voice and returns its
-// timeline (session.TimelineData), or null when no voice is loaded.
-func (b *bridge) say(_ js.Value, a []js.Value) any {
-	if !b.loaded {
-		return js.Null()
-	}
+// options reads the session options from the second argument, if any.
+func options(a []js.Value) session.Options {
 	var o sayOptions
 	if len(a) > 1 && a[1].Truthy() {
 		_ = json.Unmarshal([]byte(js.Global().Get("JSON").Call("stringify", a[1]).String()), &o)
@@ -123,7 +127,81 @@ func (b *bridge) say(_ js.Value, a []js.Value) any {
 	if o.BPM > 0 {
 		opts.Clock = &voice.Clock{BPM: o.BPM, Phase: time.Duration(o.Phase * float64(time.Second))}
 	}
-	if err := b.s.Say(a[0].String(), opts); err != nil {
+	return opts
+}
+
+// audition(name) plays a short phrase on one instrument or percussion
+// sound of the current voice. Returns "" or why it cannot.
+func (b *bridge) audition(_ js.Value, a []js.Value) any {
+	if !b.loaded {
+		return "no voice"
+	}
+	if err := b.s.Audition(a[0].String()); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// renderStart(text, options) starts an offline render of the line; a
+// running one is dropped. False when no voice is loaded.
+func (b *bridge) renderStart(_ js.Value, a []js.Value) any {
+	b.render = nil
+	if !b.loaded {
+		return false
+	}
+	r, err := b.s.StartRender(a[0].String(), options(a))
+	if err != nil {
+		return false
+	}
+	b.render = r
+	return true
+}
+
+// renderStep(blocks, columns) renders up to blocks blocks of the started
+// render. Until it is complete it returns null; then {peaks, duration,
+// timeline}: peaks holds min and max per column (session.Peaks), duration
+// is the render's length in seconds (the line and its tail), timeline is
+// what say would return. The finished render is kept for wav().
+func (b *bridge) renderStep(_ js.Value, a []js.Value) any {
+	if b.render == nil || !b.render.Step(a[0].Int()) {
+		return js.Null()
+	}
+	l, r, tl := b.render.Result()
+	b.render = nil
+	b.left, b.right = l, r
+	peaks := session.Peaks(l, r, a[1].Int())
+	arr := js.Global().Get("Float32Array").New(len(peaks))
+	for i, p := range peaks {
+		arr.SetIndex(i, p)
+	}
+	return js.ValueOf(map[string]any{
+		"peaks":    arr,
+		"duration": float64(len(l)) / float64(b.s.SampleRate()),
+		"timeline": toJS(session.Data(b.s.Voice(), tl)),
+	})
+}
+
+// wav() returns the last render as WAV bytes (a Uint8Array), or null.
+func (b *bridge) wav(js.Value, []js.Value) any {
+	if b.left == nil {
+		return js.Null()
+	}
+	data, err := session.WAV(b.left, b.right, b.s.SampleRate())
+	if err != nil {
+		return js.Null()
+	}
+	arr := js.Global().Get("Uint8Array").New(len(data))
+	js.CopyBytesToJS(arr, data)
+	return arr
+}
+
+// say(text, options) starts a line with the current voice and returns its
+// timeline (session.TimelineData), or null when no voice is loaded.
+func (b *bridge) say(_ js.Value, a []js.Value) any {
+	if !b.loaded {
+		return js.Null()
+	}
+	if err := b.s.Say(a[0].String(), options(a)); err != nil {
 		return js.Null()
 	}
 	return toJS(session.Data(b.s.Voice(), b.s.Timeline()))
@@ -141,6 +219,7 @@ func (b *bridge) update(_ js.Value, a []js.Value) any {
 	return js.ValueOf(map[string]any{
 		"revealed": st.Revealed,
 		"done":     st.Done,
+		"audition": st.Audition,
 		"paused":   st.Paused,
 		"time":     st.Time.Seconds(),
 		"events":   events,

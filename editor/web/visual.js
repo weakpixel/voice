@@ -41,11 +41,19 @@ export class VisualEditor {
    * @param {Record<string, Record<string, any>>} percussionDefaults built-in sounds as entry fields
    * @param {OnChange} onChange
    */
-  constructor(root, fields, percussionDefaults, onChange) {
+  /**
+   * @param {HTMLElement} root
+   * @param {Fields} fields
+   * @param {Record<string, any>} percussionDefaults
+   * @param {OnChange} onChange
+   * @param {(name: string) => void} [onAudition] plays a phrase on an instrument or drum
+   */
+  constructor(root, fields, percussionDefaults, onChange, onAudition = () => {}) {
     this.root = root;
     this.fields = fields;
     this.percDefaults = percussionDefaults;
     this.onChange = onChange;
+    this.onAudition = onAudition;
     /** @type {any} */
     this.doc = {};
     this.instrument = "vowel"; // the instrument tab shown
@@ -176,7 +184,8 @@ export class VisualEditor {
             );
       body = el("div", {}, own, this.instrumentFields(path + ".", {}));
     }
-    return this.section("Instruments", "instruments", tabs, body);
+    const head = el("div", { class: "tab-row" }, tabs, this.auditionButton(n, `Hear a short phrase on the ${n} instrument`));
+    return this.section("Instruments", "instruments", head, body);
   }
 
   /** The instrument fields; the sample ones fold away unless used. */
@@ -232,6 +241,7 @@ export class VisualEditor {
           oninput: (e) => this.change(path, e.target.value, false),
           onchange: (e) => this.change(path, e.target.value, true),
         }),
+        this.auditionButton(sound, `Hear the ${sound}`),
         el("button", { type: "button", class: "small", title: "Remove from the beat", onclick: () => this.structural(remove(this.doc, path)) }, "Remove"),
       );
     });
@@ -266,6 +276,7 @@ export class VisualEditor {
           {},
           el("strong", { title: this.optionTip("percussion", base) }, name),
           base ? ` (from ${base})` : "",
+          this.auditionButton(name, `Hear the ${name}`),
           el("button", { type: "button", class: "small", title: "Remove the sound", onclick: () => this.structural(remove(this.doc, `percussion.${name}`)) }, "Remove"),
         ),
         this.groups(this.fields.percussion, prefix, defaults),
@@ -307,6 +318,25 @@ export class VisualEditor {
       el("p", { class: "hint" }, "The sounds a rhythm's beat plays. Built-in sounds work in a beat without an entry; add one here to change it."),
       ...cards,
       el("div", { class: "add-row" }, add, custom, addCustom),
+    );
+  }
+
+  /** A small play button that auditions an instrument or drum by name. */
+  auditionButton(name, title) {
+    return el(
+      "button",
+      {
+        type: "button",
+        class: "small audition",
+        title,
+        dataset: { audition: name },
+        onclick: (e) => {
+          e.preventDefault(); // inside a summary it would fold the card
+          this.onAudition(name);
+        },
+      },
+      el("span", { class: "icon", style: "--icon: url(icons/player-play.svg)" }),
+      "Hear",
     );
   }
 

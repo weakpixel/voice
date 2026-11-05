@@ -8,12 +8,30 @@
   --accent-text: #ffffff;
   --error: #c62828;
   --ok: #2e7d32;
+  --grid: #d0d2d6;
+  --wave: #6b7a99;
+  --playhead: #e5484d;
+  --inst-vowel: #3a6df0;
+  --inst-sonorant: #2e9e6b;
+  --inst-fricative: #d9822b;
+  --inst-plosive: #c4398f;
+  --inst-motif: #8a63d2;
+  --inst-percussion: #6b6f75;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #17181a;
+    --grid: #34373c;
+    --wave: #8da2c9;
+    --playhead: #ff6369;
+    --inst-vowel: #6d94ff;
+    --inst-sonorant: #4cc38a;
+    --inst-fricative: #f1a14c;
+    --inst-plosive: #e66bb4;
+    --inst-motif: #a98be8;
+    --inst-percussion: #9a9ea5;
     --panel: #212326;
     --text: #e4e5e7;
     --muted: #9a9ea5;
@@ -134,6 +152,15 @@ textarea {
   overflow-wrap: anywhere;
 }
 .hidden-text { color: transparent; }
+.lanes { display: grid; gap: 4px; margin-top: 10px; }
+.lanes canvas { width: 100%; display: block; background: var(--bg); border-radius: 4px; }
+#roll { height: 150px; }
+#wave { height: 56px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; background: var(--c); vertical-align: -1px; }
+.tab-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tab-row .audition { margin-left: auto; }
+button.audition .icon { width: 12px; height: 12px; }
 .meter { height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; }
 .meter-bar { height: 100%; width: 0; background: var(--accent); transition: width 60ms linear; }
 .status-line { color: var(--muted); font-size: 12px; font-family: var(--mono); }
@@ -241,11 +268,13 @@ textarea {
 .check { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
 .inherits-note { padding: 12px 0; }
 .pattern { font-family: var(--mono); letter-spacing: 0.08em; }
-.beat .row { grid-template-columns: 110px minmax(0, 1fr) auto; }
+.beat .row { grid-template-columns: 110px minmax(0, 1fr) auto auto; }
 button.small { padding: 1px 8px; font-size: 12px; }
 .card { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; }
 .card summary { cursor: pointer; display: flex; align-items: center; gap: 6px; }
-.card summary button { margin-left: auto; }
+.card summary .tab-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tab-row .audition { margin-left: auto; }
+button.audition .icon { width: 12px; height: 12px; }
 details.sample summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 8px; }
 .add-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 select.add { font-size: 13px; }

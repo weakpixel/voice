@@ -7,6 +7,7 @@ import { utf8, revealedText, locatePath, downloadName, docName, looksLikeVoice }
 import { format } from "./format.js";
 import { VisualEditor } from "./visual.js";
 import { installTooltips } from "./tooltip.js";
+import { PianoRoll } from "./pianoroll.js";
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const docArea = /** @type {HTMLTextAreaElement} */ ($("doc"));
@@ -22,6 +23,7 @@ const buttons = {
   stop: /** @type {HTMLButtonElement} */ ($("stop")),
 };
 
+const roll = new PianoRoll(/** @type {HTMLCanvasElement} */ ($("roll")), /** @type {HTMLCanvasElement} */ ($("wave")));
 const DRAFT_KEY = "voice-editor/draft";
 const VALIDATE_DELAY = 250; // ms after the last keystroke
 
@@ -203,6 +205,7 @@ function validate() {
   v.className = `validity ${r.ok ? "ok" : "bad"}`;
   buttons.play.disabled = !r.ok;
   visual?.showProblems(r.problems || []);
+  if (r.ok) scheduleRender();
 }
 
 /** @param {{path: string, message: string}[]} problems */
@@ -253,6 +256,7 @@ function jumpTo(p) {
 // ---- playback ----
 
 let playing = false;
+let auditioning = false; // the playing sound is an audition, not the line
 let lastFrame = 0;
 let lineBytes = utf8("");
 let lineText = "";
@@ -269,8 +273,30 @@ async function play() {
   lineBytes = utf8(lineText);
   const tl = api.say(lineText, { speed: 1 });
   if (!tl) return;
+  auditioning = false;
+  roll.setTimeline(tl);
   $("events").textContent = "";
   maxPeak = 0; // the meter's data-max-peak is per line (the smoke test reads it)
+  playing = true;
+  lastFrame = performance.now();
+  setTransport();
+  requestAnimationFrame(frame);
+}
+
+/** Plays a short phrase on one instrument (or a few hits on a drum). */
+async function audition(name) {
+  if (!api || !voiceOK) return;
+  if (!(await audioStarted())) {
+    toast(api.audioError() || "Audio did not start. Click the page and try again.");
+    return;
+  }
+  const err = api.audition(name);
+  if (err) {
+    toast(err);
+    return;
+  }
+  auditioning = true;
+  maxPeak = 0;
   playing = true;
   lastFrame = performance.now();
   setTransport();
@@ -299,19 +325,23 @@ function frame(now) {
 
 /** @param {{revealed: number, done: boolean, paused: boolean, time: number, events: string[]}} st */
 function showState(st) {
-  const shown = revealedText(lineBytes, st.revealed);
-  $("shown").textContent = shown;
-  $("hidden").textContent = lineText.slice(shown.length);
+  if (!auditioning) {
+    const shown = revealedText(lineBytes, st.revealed);
+    $("shown").textContent = shown;
+    $("hidden").textContent = lineText.slice(shown.length);
+  }
   $("time").textContent = `${st.time.toFixed(2)} s`;
   if (st.events.length) {
     $("events").textContent = [$("events").textContent, ...st.events].filter(Boolean).join(" · ");
   }
   meter();
-  if (st.done) {
+  if (st.done && !st.audition) {
     playing = false;
+    auditioning = false;
     // Keep the meter running briefly so the tail shows.
     setTimeout(meter, 100);
   }
+  roll.setTime(playing && !auditioning ? st.time : null);
   buttons.pause.querySelector(".label").textContent = st.paused ? "Resume" : "Pause";
   setTransport();
 }
@@ -327,7 +357,82 @@ function meter() {
 
 function setTransport() {
   buttons.play.disabled = !voiceOK;
-  for (const b of [buttons.pause, buttons.skip, buttons.stop]) b.disabled = !playing;
+  buttons.stop.disabled = !playing;
+  // An audition can only be stopped.
+  for (const b of [buttons.pause, buttons.skip]) b.disabled = !playing || auditioning;
+  $("wav").toggleAttribute("disabled", !voiceOK);
+}
+
+// ---- piano roll, waveform and WAV ----
+
+const RENDER_DELAY = 300; // ms after the last edit
+const RENDER_BLOCKS = 16; // blocks of 64 frames per renderStep call
+let renderTimer = 0;
+let renderJob = 0;
+let renderingKey = "";
+let renderPromise = Promise.resolve(false);
+let renderedKey = "";
+
+/** What the render depends on: the document and the line. */
+function renderKey() {
+  return `${docArea.value}\u0000${lineInput.value}`;
+}
+
+/** Renders the line again once edits settle. */
+function scheduleRender() {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(renderNow, RENDER_DELAY);
+}
+
+/**
+ * Renders the line offline and shows its notes and waveform. The render
+ * runs in slices between frames (a long divine line takes about a second
+ * in all), smaller ones while a line plays so the audio keeps its share of
+ * the main thread. A newer render replaces a running one.
+ * @returns {Promise<boolean>} whether the shown render is current
+ */
+function renderNow() {
+  if (!api || !voiceOK) return Promise.resolve(false);
+  const key = renderKey();
+  if (key === renderedKey) return Promise.resolve(true);
+  if (key === renderingKey) return renderPromise;
+  const job = ++renderJob;
+  renderingKey = key;
+  renderPromise = (async () => {
+    if (!api.renderStart(lineInput.value, { speed: 1 })) return false;
+    for (;;) {
+      const budget = playing ? 3 : 10; // ms per frame
+      const t0 = performance.now();
+      let r = null;
+      while (!r && performance.now() - t0 < budget) r = api.renderStep(RENDER_BLOCKS, roll.columns());
+      if (r) {
+        renderedKey = key;
+        renderingKey = "";
+        roll.setTimeline(r.timeline);
+        roll.setWave(r.peaks, r.duration);
+        return true;
+      }
+      await new Promise((res) => requestAnimationFrame(res));
+      if (job !== renderJob) return false; // a newer render took over
+    }
+  })();
+  return renderPromise;
+}
+
+/** Downloads the test line as a WAV file. */
+async function downloadWAV() {
+  if (!(await renderNow())) return;
+  const bytes = api.wav();
+  if (!bytes) return;
+  const base = downloadName(docArea.value, openedName).replace(/(\.voice)?\.json$/, "");
+  const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${base}-line.wav`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function control(action) {
@@ -397,7 +502,11 @@ function wire() {
       scheduleValidate();
     }
   });
-  lineInput.addEventListener("input", saveDraft);
+  lineInput.addEventListener("input", () => {
+    saveDraft();
+    scheduleRender();
+  });
+  $("wav").addEventListener("click", downloadWAV);
   lineInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") play();
   });
@@ -512,7 +621,7 @@ async function main() {
   api.setVolume(Number(volume.value));
   try {
     const fields = await (await fetch("fields.json")).json();
-    visual = new VisualEditor($("visual"), fields, api.percussionDefaults(), onVisualChange);
+    visual = new VisualEditor($("visual"), fields, api.percussionDefaults(), onVisualChange, audition);
   } catch (e) {
     toast(`The visual editor could not load: ${e}`);
   }
