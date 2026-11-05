@@ -44,6 +44,7 @@ func main() {
 		"resume":       js.FuncOf(func(js.Value, []js.Value) any { s.Resume(); return nil }),
 		"setVolume":    js.FuncOf(func(_ js.Value, a []js.Value) any { s.SetVolume(float32(a[0].Float())); return nil }),
 		"peak":         js.FuncOf(func(js.Value, []js.Value) any { return float64(s.Peak()) }),
+		"framesRead":   js.FuncOf(func(js.Value, []js.Value) any { return float64(s.FramesRead()) }),
 		"audioReady":   js.FuncOf(func(js.Value, []js.Value) any { return b.audio.isReady() }),
 		"audioError":   js.FuncOf(func(js.Value, []js.Value) any { return b.audio.errText() }),
 		"percussionDefaults": js.FuncOf(func(js.Value, []js.Value) any {
@@ -101,11 +102,11 @@ func (b *bridge) loadLanguage(_ js.Value, a []js.Value) any {
 
 // sayOptions is the JSON form of session.Options from the page.
 type sayOptions struct {
-	Speed    float32  `json:"speed"`
-	Instant  bool     `json:"instant"`
-	BPM      float32  `json:"bpm"`   // with Phase: a clock, 0 means none
-	Phase    float64  `json:"phase"` // seconds until the music's next bar
-	MuteBeat bool     `json:"muteBeat"`
+	Speed    float32 `json:"speed"`
+	Instant  bool    `json:"instant"`
+	BPM      float32 `json:"bpm"`   // with Phase: a clock, 0 means none
+	Phase    float64 `json:"phase"` // seconds until the music's next bar
+	MuteBeat bool    `json:"muteBeat"`
 }
 
 // say(text, options) starts a line with the current voice and returns its

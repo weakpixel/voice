@@ -103,6 +103,9 @@ async function main() {
     assert.equal(await page.inputValue("#doc"), guard);
     assert.equal(await page.inputValue("#line"), LONG);
     console.log("ok draft");
+
+    await soundSurvives(page);
+    console.log("ok sound survives edits");
   } catch (e) {
     failures.push(e.stack || String(e));
   } finally {
@@ -114,6 +117,34 @@ async function main() {
     process.exit(1);
   }
   console.log("editor smoke test passed");
+}
+
+/**
+ * Many plays and slider drags allocate enough for garbage collections; the
+ * player must keep pulling samples through them (oto closes a player that
+ * nothing references).
+ */
+async function soundSurvives(page) {
+  await page.selectOption("#starter", "soft");
+  await page.waitForSelector(".validity.ok");
+  await page.click("#tab-visual");
+  const before = await page.evaluate(() => voiceEditor.framesRead());
+  for (let round = 0; round < 12; round++) {
+    await page.click("#play");
+    await page.evaluate(() => {
+      const e = document.querySelector('.row[data-path="instruments.vowel.decayMs"] input[type=range]');
+      for (let i = 0; i < 30; i++) {
+        e.value = String(50 + i * 10);
+        e.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      e.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.waitForTimeout(300);
+  }
+  const mid = await page.evaluate(() => voiceEditor.framesRead());
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() => voiceEditor.framesRead());
+  assert.ok(mid > before && after > mid, `the player stopped reading: frames ${before}, ${mid}, ${after}`);
 }
 
 /** The Visual tab edits the document text and plays the line after an edit. */
