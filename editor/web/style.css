@@ -170,6 +170,21 @@ textarea {
   border-radius: 6px;
 }
 
+.tooltip {
+  position: fixed;
+  z-index: 20;
+  max-width: min(340px, calc(100vw - 16px));
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 12.5px;
+  line-height: 1.4;
+  white-space: pre-line;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+}
+
 /* ---- view tabs and the visual editor ---- */
 .tabs { display: inline-flex; gap: 2px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .tab {

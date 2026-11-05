@@ -6,6 +6,7 @@
 import { utf8, revealedText, locatePath, downloadName, docName, looksLikeVoice } from "./text.js";
 import { format } from "./format.js";
 import { VisualEditor } from "./visual.js";
+import { installTooltips } from "./tooltip.js";
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const docArea = /** @type {HTMLTextAreaElement} */ ($("doc"));
@@ -487,6 +488,7 @@ async function startGo() {
 
 async function main() {
   wire();
+  installTooltips();
   buttons.play.disabled = true;
   const draft = loadDraft();
   const [names] = await Promise.all([fillStarters()]);

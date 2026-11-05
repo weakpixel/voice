@@ -155,8 +155,15 @@ async function visualEditor(page) {
   await page.waitForSelector(".validity.ok");
   await page.click("#tab-visual");
   assert.ok(await page.isVisible("#visual"));
-  assert.match(await page.getAttribute('.row[data-path="speed"]', "title"), /fast/, "a field explains itself");
-  assert.match(await page.getAttribute('.row[data-path="instruments.vowel.wave"]', "title"), /square: /, "a menu explains its choices");
+  const tipOf = (sel) => page.$eval(sel, (e) => e.title || e.dataset.tip);
+  assert.match(await tipOf('.row[data-path="speed"]'), /fast/, "a field explains itself");
+  assert.match(await tipOf('.row[data-path="instruments.vowel.wave"]'), /square: /, "a menu explains its choices");
+  await page.hover('.row[data-path="speed"] .label');
+  await page.waitForSelector(".tooltip:not([hidden])", { timeout: 1000 });
+  assert.match(await page.textContent(".tooltip"), /fast/, "the tooltip shows on hover");
+  assert.equal(await page.getAttribute('.row[data-path="speed"]', "title"), null, "no second, native tooltip");
+  await page.mouse.move(1, 1);
+  await page.waitForSelector(".tooltip", { state: "hidden" });
   assert.ok(!(await page.isVisible("#doc")));
 
   // A number field: type a value, then undo and redo it.
