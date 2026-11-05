@@ -201,7 +201,7 @@ textarea {
   gap: 6px;
   min-height: 28px;
 }
-.row .label { font-size: 13px; cursor: help; }
+.row .label { font-size: 13px; cursor: help; text-decoration: underline dotted color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: 3px; }
 .row.default .label { color: var(--muted); }
 .row.bad .label { color: var(--error); }
 .row-problem { grid-column: 1 / -1; color: var(--error); font-size: 12px; }

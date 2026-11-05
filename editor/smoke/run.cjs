@@ -155,6 +155,8 @@ async function visualEditor(page) {
   await page.waitForSelector(".validity.ok");
   await page.click("#tab-visual");
   assert.ok(await page.isVisible("#visual"));
+  assert.match(await page.getAttribute('.row[data-path="speed"]', "title"), /fast/, "a field explains itself");
+  assert.match(await page.getAttribute('.row[data-path="instruments.vowel.wave"]', "title"), /square: /, "a menu explains its choices");
   assert.ok(!(await page.isVisible("#doc")));
 
   // A number field: type a value, then undo and redo it.

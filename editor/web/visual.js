@@ -11,8 +11,8 @@ import { get, set, remove } from "./format.js";
  *   uiMin?: number, uiMax?: number, step?: number, default?: any, unit?: string,
  *   options?: string, zeroIsDefault?: boolean, group?: string, help?: string,
  *   sample?: boolean, maxItems?: number}} Field
- * @typedef {{options: Record<string, any[]>, voice: Field[], instrument: Field[],
- *   percussion: Field[], rhythm: Field[]}} Fields
+ * @typedef {{options: Record<string, any[]>, optionHelp: Record<string, Record<string, string>>,
+ *   voice: Field[], instrument: Field[], percussion: Field[], rhythm: Field[]}} Fields
  * @typedef {{path: string, message: string}} Problem
  * @typedef {(doc: any, how: {commit: boolean, structural?: boolean}) => void} OnChange
  */
@@ -136,7 +136,7 @@ export class VisualEditor {
             class: `tab${n === this.instrument ? " active" : ""}${has(n) || n === "vowel" ? "" : " inherits"}`,
             "aria-selected": n === this.instrument ? "true" : "false",
             dataset: { instrument: n },
-            title: has(n) || n === "vowel" ? "" : "Uses the vowel's sound",
+            title: this.optionTip("instruments", n) + (has(n) || n === "vowel" ? "" : "\nIt uses the vowel's sound now."),
             onclick: () => {
               this.instrument = n;
               this.render(this.doc);
@@ -196,7 +196,7 @@ export class VisualEditor {
     const on = get(this.doc, "rhythm") !== undefined;
     const toggle = el(
       "label",
-      { class: "check" },
+      { class: "check", title: "Lines land on a beat grid, like rapping to music: syllables fall on steps, punctuation waits for the beat, and drums can play along." },
       el("input", {
         type: "checkbox",
         checked: on,
@@ -221,7 +221,7 @@ export class VisualEditor {
       return el(
         "div",
         { class: "row", dataset: { path } },
-        el("span", { class: "label" }, sound),
+        el("span", { class: "label", title: this.optionTip("percussion", get(this.doc, `percussion.${sound}.base`) || sound) }, sound),
         el("input", {
           type: "text",
           class: "pattern",
@@ -246,7 +246,7 @@ export class VisualEditor {
         },
       },
       el("option", { value: "" }, "Add a sound to the beat…"),
-      ...sounds.map((s) => el("option", { value: s }, s)),
+      ...sounds.map((s) => el("option", { value: s, title: this.optionTip("percussion", s) }, s)),
     );
     return el("div", { class: "group beat" }, el("h4", {}, "Beat patterns"), ...rows, add);
   }
@@ -264,7 +264,7 @@ export class VisualEditor {
         el(
           "summary",
           {},
-          el("strong", {}, name),
+          el("strong", { title: this.optionTip("percussion", base) }, name),
           base ? ` (from ${base})` : "",
           el("button", { type: "button", class: "small", title: "Remove the sound", onclick: () => this.structural(remove(this.doc, `percussion.${name}`)) }, "Remove"),
         ),
@@ -285,7 +285,7 @@ export class VisualEditor {
         },
       },
       el("option", { value: "" }, full ? `At most ${MAX_PERCUSSION} sounds` : "Add a built-in sound…"),
-      ...this.fields.options.percussion.filter((s) => !(s in entries)).map((s) => el("option", { value: s }, s)),
+      ...this.fields.options.percussion.filter((s) => !(s in entries)).map((s) => el("option", { value: s, title: this.optionTip("percussion", s) }, s)),
     );
     const custom = el("input", { type: "text", placeholder: "or a new name", class: "custom", disabled: full, "aria-label": "Name of a new sound" });
     const addCustom = el(
@@ -312,6 +312,21 @@ export class VisualEditor {
 
   // ---- one field ----
 
+  /** What one choice of a menu does, "" if fields.json does not say. */
+  optionTip(options, value) {
+    return this.fields.optionHelp?.[options]?.[String(value)] ?? "";
+  }
+
+  /** The tooltip of a field: its help, and for a menu what each choice does. */
+  tip(f) {
+    const lines = [f.help || ""];
+    if (f.kind === "select") {
+      const choices = (this.fields.options[f.options] || []).map((o) => `${o}: ${this.optionTip(f.options, o)}`);
+      if (choices.length) lines.push("", ...choices);
+    }
+    return lines.join("\n");
+  }
+
   /** A row with the field's label, its control and a reset button. */
   row(f, path, inherited) {
     const raw = get(this.doc, path);
@@ -323,10 +338,12 @@ export class VisualEditor {
       { type: "button", class: "reset", title: "Reset to the default (remove the field)", hidden: !present, onclick: () => this.structural(remove(this.doc, path)) },
       "↺",
     );
-    const label = el("label", { class: "label", title: f.help || "", for: `f-${path}` }, f.label);
+    const label = el("label", { class: "label", for: `f-${path}` }, f.label);
+    // The tooltip sits on the whole row, so it shows over the label, the
+    // slider and the number alike.
     return el(
       "div",
-      { class: `row${present ? "" : " default"}`, dataset: { path } },
+      { class: `row${present ? "" : " default"}`, dataset: { path }, title: this.tip(f) },
       label,
       this.control(f, path, value),
       f.unit ? el("span", { class: "unit" }, f.unit) : el("span"),
@@ -390,7 +407,7 @@ export class VisualEditor {
               },
             },
             ...blank,
-            ...options.map((o) => el("option", { value: o, selected: String(o) === String(value ?? "") }, String(o))),
+            ...options.map((o) => el("option", { value: o, title: this.optionTip(f.options, o), selected: String(o) === String(value ?? "") }, String(o))),
           ),
         );
       }

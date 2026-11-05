@@ -38,11 +38,12 @@ type field struct {
 }
 
 type fieldsFile struct {
-	Options    map[string][]any `json:"options"`
-	Voice      []field          `json:"voice"`
-	Instrument []field          `json:"instrument"`
-	Percussion []field          `json:"percussion"`
-	Rhythm     []field          `json:"rhythm"`
+	Options    map[string][]any             `json:"options"`
+	OptionHelp map[string]map[string]string `json:"optionHelp"`
+	Voice      []field                      `json:"voice"`
+	Instrument []field                      `json:"instrument"`
+	Percussion []field                      `json:"percussion"`
+	Rhythm     []field                      `json:"rhythm"`
 }
 
 func readFields(t *testing.T) fieldsFile {
@@ -227,5 +228,36 @@ func checkField(t *testing.T, f fieldsFile, fd field, path, prefix string) {
 		}
 	default:
 		t.Errorf("unknown kind %q", fd.Kind)
+	}
+}
+
+// TestFieldsHaveHelp checks that every field and every menu choice has a
+// tooltip, and that no tooltip names a choice that does not exist.
+func TestFieldsHaveHelp(t *testing.T) {
+	f := readFields(t)
+	for _, fields := range [][]field{f.Voice, f.Instrument, f.Percussion, f.Rhythm} {
+		for _, fd := range fields {
+			if strings.TrimSpace(fd.Help) == "" {
+				t.Errorf("%s: no help", fd.Key)
+			}
+		}
+	}
+	for name, values := range f.Options {
+		help := f.OptionHelp[name]
+		for _, v := range values {
+			if strings.TrimSpace(help[fmt.Sprint(v)]) == "" {
+				t.Errorf("options.%s: %v has no help", name, v)
+			}
+		}
+		for k := range help {
+			if !slices.ContainsFunc(values, func(v any) bool { return fmt.Sprint(v) == k }) {
+				t.Errorf("optionHelp.%s: %q is not an option", name, k)
+			}
+		}
+	}
+	for name := range f.OptionHelp {
+		if _, ok := f.Options[name]; !ok {
+			t.Errorf("optionHelp.%s: no such options", name)
+		}
 	}
 }
