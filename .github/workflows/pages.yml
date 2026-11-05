@@ -1,0 +1,46 @@
+name: Pages
+
+# Builds the Voice Editor (make editor) and deploys build/editor to GitHub
+# Pages. Needs Pages enabled with the source "GitHub Actions" in the
+# repository settings; until then, run it by hand only.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "doc/**"
+      - "**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: editor/go.mod
+      - name: make editor
+        run: make editor
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/editor
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

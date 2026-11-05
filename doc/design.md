@@ -14,6 +14,7 @@ The core module (`github.com/weakpixel/voice`) uses the standard library only; `
 | `voice/voicetest` | `RecordingSink` |
 | `voice/ebiten` (nested module) | `Player` on an Ebiten audio context, example program, `cmd/say` (speaks a line on the audio device through oto) |
 | `voice/cmd/voiceplay` | renders to WAV for listening |
+| `voice/editor` (nested module) | the Voice Editor web site, see [Editor](#editor) |
 
 ## The `Sink` seam
 
@@ -90,6 +91,16 @@ Notes reach the synthesizer at the next 64-frame block after `Update`, and the p
 | `Speaker.Say`, 36 characters, `flow` (rhythm and percussion, 36 allocations) | 21.5 µs | | 137 µs | |
 
 All cases but `Say` allocate nothing. A dialogue line uses two to four voices at a time (up to about twelve for `divine` with its chords and overlapping releases), so the synthesizer costs well under 2 % of a core for the light voices and about 3 % native, 11 % in a browser, for the heaviest.
+
+## Editor
+
+The Voice Editor ([editor.md](editor.md)) is a nested module so the core stays free of oto and of anything browser-specific. All its logic is in `editor/session`, which knows no browser and is tested natively; `editor/wasm` only maps it to `syscall/js` and starts the audio.
+
+**The document is the model.** The editor edits the `*.voice.json` text itself and loads it with `voice.LoadVoice` after every change, so the library is the only validator and an exported file is exactly what the user wrote. There is no encoder from `Voice` back to JSON: loading fills missing instruments with the vowel's and adds the built-in percussion a beat names, so a re-encoded voice would not be the file the user wrote.
+
+**Playback is the game's.** A test line plays on a `synth.Stream` through a `voice.Speaker`, driven by the page's animation frames, so typewriter, Skip, Pause and the release of every note behave as in a game. The stream plays through oto, the library under Ebiten's audio: Ebiten's audio context only opens the device from a running game loop, which a page with a form does not have (the same reason `say` uses oto). oto's js backend feeds an `AudioWorkletNode` from the main thread, so it needs no `SharedArrayBuffer` and no COOP/COEP headers, which GitHub Pages cannot send. Its device buffer and the player's read-ahead are 50 ms: the stream applies notes at the next block it renders, so the read-ahead is how late a note can start. A valid edit sets the voice's patches on the stream at once, so an instrument change is heard on the next notes of a playing line.
+
+Measured in headless Chromium (2026-11-05, same container as below), a 107-character line keeps the page's main thread busy 12 % of the time with `soft` and 15 % with `divine` (about 2 % with the page idle and the stream silent), with no task over 50 ms. The site is 5.1 MB, the wasm 1.4 MB gzipped.
 
 ## Not built yet
 

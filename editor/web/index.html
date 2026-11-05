@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="version" content="__VERSION__">
+  <title>Voice Editor</title>
+  <link rel="stylesheet" href="style.css?v=__VERSION__">
+  <script src="wasm_exec.js?v=__VERSION__"></script>
+  <script type="module" src="app.js?v=__VERSION__"></script>
+</head>
+<body>
+  <header class="bar">
+    <h1>Voice Editor</h1>
+    <span id="doc-name" class="doc-name"></span>
+    <div class="spacer"></div>
+    <label class="button" title="Start a new voice from a starter voice">
+      <span class="icon" style="--icon: url(icons/plus.svg)"></span>
+      <select id="starter" aria-label="New from starter">
+        <option value="">New from starter…</option>
+      </select>
+    </label>
+    <button id="open" type="button" title="Open a .voice.json file (or drop one on the page)">
+      <span class="icon" style="--icon: url(icons/upload.svg)"></span>Open
+    </button>
+    <button id="download" type="button" title="Download the voice as a .voice.json file">
+      <span class="icon" style="--icon: url(icons/download.svg)"></span>Download
+    </button>
+    <button id="copy" type="button" title="Copy the voice JSON to the clipboard">
+      <span class="icon" style="--icon: url(icons/copy.svg)"></span>Copy
+    </button>
+    <input id="file" type="file" accept=".json,application/json" hidden>
+  </header>
+
+  <main class="layout">
+    <section class="panel editor" aria-label="Voice file">
+      <div class="panel-head">
+        <h2>Voice file</h2>
+        <span id="validity" class="validity"></span>
+      </div>
+      <textarea id="doc" spellcheck="false" autocomplete="off" aria-label="Voice JSON"></textarea>
+    </section>
+
+    <section class="panel preview" aria-label="Preview">
+      <div class="panel-head"><h2>Preview</h2><span id="audio-state" class="audio-state">Audio starts on the first click</span></div>
+      <label class="field">Test line
+        <input id="line" type="text" value="Hello there, traveler! Are you lost?">
+      </label>
+      <div class="transport">
+        <button id="play" type="button" class="primary"><span class="icon" style="--icon: url(icons/player-play.svg)"></span>Play</button>
+        <button id="pause" type="button" disabled><span class="icon" style="--icon: url(icons/player-pause.svg)"></span><span class="label">Pause</span></button>
+        <button id="skip" type="button" disabled><span class="icon" style="--icon: url(icons/player-track-next.svg)"></span>Skip</button>
+        <button id="stop" type="button" disabled><span class="icon" style="--icon: url(icons/player-stop.svg)"></span>Stop</button>
+        <label class="volume" title="Volume"><span class="icon" style="--icon: url(icons/volume.svg)"></span>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
+        </label>
+      </div>
+      <div class="typewriter" id="typewriter" aria-live="polite"><span id="shown"></span><span id="hidden" class="hidden-text"></span></div>
+      <div class="meter" aria-hidden="true"><div id="meter-bar" class="meter-bar"></div></div>
+      <div class="status-line"><span id="time">0.00 s</span> <span id="events"></span></div>
+      <h3>Problems</h3>
+      <ul id="problems" class="problems"><li class="none">None</li></ul>
+    </section>
+  </main>
+  <div id="drop" class="drop" hidden>Drop a .voice.json file to open it</div>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
