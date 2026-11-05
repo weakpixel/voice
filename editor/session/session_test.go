@@ -223,3 +223,13 @@ func TestRenderLine(t *testing.T) {
 		})
 	}
 }
+
+func TestPercussionDefaults(t *testing.T) {
+	d := PercussionDefaults()
+	if len(d) != len(voice.PercussionNames()) {
+		t.Fatalf("%d sounds", len(d))
+	}
+	if d["kick"]["wave"] != "sine" || d["kick"]["note"] != float32(36) || d["hat"]["filter"] != "highpass" {
+		t.Errorf("kick %v, hat %v", d["kick"], d["hat"])
+	}
+}

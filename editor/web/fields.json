@@ -1,0 +1,64 @@
+{
+  "options": {
+    "wave": ["sine", "triangle", "square", "saw", "noise"],
+    "filter": ["lowpass", "highpass", "bandpass"],
+    "rest": ["none", "step", "beat", "bar"],
+    "division": [2, 3, 4],
+    "instruments": ["vowel", "sonorant", "fricative", "plosive", "motif"],
+    "percussion": ["clap", "hat", "kick", "rim", "shaker", "snare", "tom"]
+  },
+  "voice": [
+    {"key": "name", "label": "Name", "kind": "text", "group": "File", "help": "The voice's name; also the default file name."},
+    {"key": "language", "label": "Language", "kind": "text", "group": "File", "help": "A name your game resolves to a language; empty is the built-in language."},
+    {"key": "baseNote", "label": "Base note", "kind": "number", "min": 24, "max": 108, "step": 1, "default": 64, "group": "Pitch", "help": "The note of a phoneme with pitch 0 (60 is middle C)."},
+    {"key": "pitch", "label": "Pitch", "kind": "number", "min": -24, "max": 24, "step": 0.1, "default": 0, "unit": "st", "group": "Pitch", "help": "Semitones added to every note; tells characters with one voice apart."},
+    {"key": "variation", "label": "Variation", "kind": "number", "min": 0, "max": 12, "step": 0.1, "default": 1, "unit": "st", "group": "Pitch", "help": "Random pitch spread, plus or minus this many semitones."},
+    {"key": "speed", "label": "Speed", "kind": "number", "min": 1, "max": 60, "step": 0.5, "default": 14, "unit": "beats/s", "group": "Timing", "help": "Beats per second; a phoneme of length 1 takes one beat."},
+    {"key": "length", "label": "Note length", "kind": "number", "min": 0.05, "max": 1, "step": 0.01, "default": 0.8, "group": "Timing", "help": "How much of its slot a note sounds."},
+    {"key": "breath", "label": "Breath", "kind": "number", "min": 0, "max": 2, "step": 0.05, "default": 0.4, "unit": "s", "group": "Timing", "help": "How long the motif's last note rings on after the voice."},
+    {"key": "velocity", "label": "Velocity", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0.8, "group": "Mix", "help": "Loudness of the phonemes."},
+    {"key": "motifVolume", "label": "Motif volume", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0.2, "group": "Mix", "help": "Loudness of the motif; 0 turns it off."},
+    {"key": "pan", "label": "Pan", "kind": "number", "min": -1, "max": 1, "step": 0.05, "default": 0, "group": "Mix", "help": "-1 is left, 1 is right."},
+    {"key": "seed", "label": "Seed", "kind": "int", "min": 0, "errorPath": "*", "step": 1, "default": 0, "group": "Mix", "help": "Mixed with the text: change it for a different melody of the same lines."}
+  ],
+  "instrument": [
+    {"key": "wave", "label": "Wave", "kind": "select", "options": "wave", "default": "sine", "group": "Oscillator", "help": "The oscillator's waveform; noise ignores the pitch (shape it with the filter)."},
+    {"key": "pulseWidth", "label": "Pulse width", "kind": "number", "min": 0.01, "max": 0.99, "step": 0.01, "default": 0.5, "zeroIsDefault": true, "group": "Oscillator", "help": "High part of a square's cycle."},
+    {"key": "detune", "label": "Detune", "kind": "number", "min": -24, "max": 24, "uiMin": -1, "uiMax": 1, "step": 0.01, "default": 0, "unit": "st", "group": "Oscillator", "help": "A second oscillator this many semitones away; 0 is one oscillator."},
+    {"key": "unison", "label": "Unison", "kind": "int", "min": 0, "max": 7, "step": 1, "default": 0, "group": "Oscillator", "help": "Copies of the oscillator for a section or choir; 0 and 1 are one."},
+    {"key": "spread", "label": "Spread", "kind": "number", "min": 0, "max": 12, "uiMax": 1, "step": 0.01, "default": 0, "unit": "st", "group": "Oscillator", "help": "Total detune of the unison copies."},
+    {"key": "layers", "label": "Layers", "kind": "list", "min": -24, "max": 24, "maxItems": 4, "group": "Oscillator", "help": "Semitone offsets played together, like a chord: 0, -12, 7. Empty is one note."},
+    {"key": "attackMs", "label": "Attack", "kind": "number", "min": 0, "max": 10000, "uiMax": 1000, "step": 1, "default": 0, "unit": "ms", "group": "Envelope", "help": "Time to the peak (at least 2 ms)."},
+    {"key": "decayMs", "label": "Decay", "kind": "number", "min": 0, "max": 10000, "uiMax": 2000, "step": 1, "default": 0, "unit": "ms", "group": "Envelope", "help": "Time from the peak to the sustain level."},
+    {"key": "sustain", "label": "Sustain", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0, "group": "Envelope", "help": "Level held until the note off; 0 ends the note after the decay."},
+    {"key": "releaseMs", "label": "Release", "kind": "number", "min": 0, "max": 10000, "uiMax": 3000, "step": 1, "default": 0, "unit": "ms", "group": "Envelope", "help": "Fade after the note off (at least 2 ms)."},
+    {"key": "glideFrom", "label": "Glide from", "kind": "number", "min": -24, "max": 24, "step": 0.5, "default": 0, "unit": "st", "group": "Pitch", "help": "The note starts this many semitones away and slides to its pitch."},
+    {"key": "glideMs", "label": "Glide time", "kind": "number", "min": 0, "max": 10000, "uiMax": 500, "step": 1, "default": 0, "unit": "ms", "group": "Pitch", "help": "How long the glide takes."},
+    {"key": "vibratoRate", "label": "Vibrato rate", "kind": "number", "min": 0, "max": 50, "uiMax": 12, "step": 0.1, "default": 0, "unit": "Hz", "group": "Pitch", "help": "Speed of the vibrato; 0 is none."},
+    {"key": "vibratoDepth", "label": "Vibrato depth", "kind": "number", "min": -12, "max": 12, "uiMin": 0, "uiMax": 1, "step": 0.01, "default": 0, "unit": "st", "group": "Pitch", "help": "Peak pitch swing of the vibrato."},
+    {"key": "vibratoDelayMs", "label": "Vibrato delay", "kind": "number", "min": 0, "max": 10000, "uiMax": 1000, "step": 1, "default": 0, "unit": "ms", "group": "Pitch", "help": "The vibrato starts this long after the note on."},
+    {"key": "filter", "label": "Filter", "kind": "select", "options": "filter", "default": "lowpass", "group": "Filter", "help": "The filter's type (it is off while the cutoff is 0)."},
+    {"key": "cutoff", "label": "Cutoff", "kind": "number", "min": 0, "max": 100000, "uiMax": 12000, "step": 10, "default": 0, "unit": "Hz", "group": "Filter", "help": "Filter frequency; 0 turns the filter off."},
+    {"key": "resonance", "label": "Resonance", "kind": "number", "min": 0, "max": 0.99, "maxBelow": 1, "step": 0.01, "default": 0, "group": "Filter", "help": "Emphasis around the cutoff, 0 to below 1."},
+    {"key": "gain", "label": "Gain", "kind": "number", "min": 0, "max": 4, "uiMin": 0.01, "uiMax": 2, "step": 0.01, "default": 1, "zeroIsDefault": true, "group": "Output", "help": "Output level of the instrument."},
+    {"key": "reverb", "label": "Reverb", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0, "group": "Output", "help": "Send into the stream's reverb; 0 is dry."},
+    {"key": "sample", "label": "Sample", "kind": "text", "group": "Sample", "sample": true, "help": "A sound file your loader resolves; replaces the oscillator. Not playable in the editor yet."},
+    {"key": "root", "label": "Root", "kind": "number", "min": 0, "max": 127, "step": 1, "default": 60, "zeroIsDefault": true, "group": "Sample", "sample": true, "help": "The note the sample sounds at."},
+    {"key": "loop", "label": "Loop", "kind": "bool", "default": false, "group": "Sample", "sample": true, "help": "Repeat the loop frames until the envelope ends."},
+    {"key": "loopStart", "label": "Loop start", "kind": "int", "min": 0, "step": 1, "default": 0, "unit": "frame", "group": "Sample", "sample": true, "help": "First frame of the loop."},
+    {"key": "loopEnd", "label": "Loop end", "kind": "int", "min": 0, "step": 1, "default": 0, "unit": "frame", "errorPath": "loopStart", "group": "Sample", "sample": true, "help": "End of the loop; 0 is the end of the sample."}
+  ],
+  "percussion": [
+    {"key": "base", "label": "Based on", "kind": "select", "options": "percussion", "default": "", "group": "Sound", "help": "A built-in sound to start from; the fields below replace its values."},
+    {"key": "note", "label": "Note", "kind": "number", "min": 0, "max": 127, "step": 1, "default": 60, "group": "Sound", "help": "The note every hit plays."}
+  ],
+  "rhythm": [
+    {"key": "bpm", "label": "Tempo", "kind": "number", "min": 40, "max": 240, "step": 1, "default": 90, "unit": "bpm", "group": "Grid", "help": "Beats per minute."},
+    {"key": "division", "label": "Steps per beat", "kind": "select", "options": "division", "default": 4, "group": "Grid", "help": "2 eighths, 3 triplets, 4 sixteenths; a bar has 4 beats."},
+    {"key": "swing", "label": "Swing", "kind": "number", "min": 0, "max": 0.5, "step": 0.01, "default": 0, "group": "Grid", "help": "Delays every second step by this share of a step."},
+    {"key": "countIn", "label": "Count-in", "kind": "int", "min": 0, "max": 2, "step": 1, "default": 0, "unit": "bars", "group": "Grid", "help": "Bars of beat before the voice starts."},
+    {"key": "rest.pause", "label": "Rest after , ; :", "kind": "select", "options": "rest", "default": "beat", "group": "Rests", "help": "Where the voice starts again after punctuation without an end rule."},
+    {"key": "rest.end", "label": "Rest after . ? !", "kind": "select", "options": "rest", "default": "bar", "group": "Rests", "help": "Where the voice starts again after a sentence end."},
+    {"key": "beatVolume", "label": "Beat volume", "kind": "number", "min": 0, "max": 1, "step": 0.01, "default": 0.8, "group": "Beat", "help": "Velocity of a percussion hit."}
+  ]
+}

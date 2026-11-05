@@ -26,6 +26,8 @@
     <button id="download" type="button" title="Download the voice as a .voice.json file">
       <span class="icon" style="--icon: url(icons/download.svg)"></span>Download
     </button>
+    <button id="undo" type="button" title="Undo (Ctrl+Z)" disabled>Undo</button>
+    <button id="redo" type="button" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
     <button id="copy" type="button" title="Copy the voice JSON to the clipboard">
       <span class="icon" style="--icon: url(icons/copy.svg)"></span>Copy
     </button>
@@ -35,10 +37,14 @@
   <main class="layout">
     <section class="panel editor" aria-label="Voice file">
       <div class="panel-head">
-        <h2>Voice file</h2>
+        <div class="tabs" role="tablist" aria-label="View">
+          <button id="tab-visual" type="button" role="tab" class="tab" data-view="visual">Visual</button>
+          <button id="tab-source" type="button" role="tab" class="tab" data-view="source">Source</button>
+        </div>
         <span id="validity" class="validity"></span>
       </div>
-      <textarea id="doc" spellcheck="false" autocomplete="off" aria-label="Voice JSON"></textarea>
+      <div id="visual" class="visual" role="tabpanel" aria-labelledby="tab-visual" hidden></div>
+      <textarea id="doc" spellcheck="false" autocomplete="off" aria-label="Voice JSON" role="tabpanel" aria-labelledby="tab-source"></textarea>
     </section>
 
     <section class="panel preview" aria-label="Preview">
@@ -51,6 +57,7 @@
         <button id="pause" type="button" disabled><span class="icon" style="--icon: url(icons/player-pause.svg)"></span><span class="label">Pause</span></button>
         <button id="skip" type="button" disabled><span class="icon" style="--icon: url(icons/player-track-next.svg)"></span>Skip</button>
         <button id="stop" type="button" disabled><span class="icon" style="--icon: url(icons/player-stop.svg)"></span>Stop</button>
+        <label class="check" title="Play the line again after an edit (instrument edits are heard live while it plays)"><input id="replay" type="checkbox" checked> Replay on change</label>
         <label class="volume" title="Volume"><span class="icon" style="--icon: url(icons/volume.svg)"></span>
           <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
         </label>

@@ -1,7 +1,8 @@
 // Headless Chromium test of the built Voice Editor site: every starter plays
-// (oto pulls samples, the typewriter reaches the whole line), problems show
-// with their paths, transport buttons work, a file opens and downloads, and
-// the draft survives a reload.
+// (oto pulls samples, the typewriter reaches the whole line), the visual
+// editor edits the document (sliders, dropdowns, checkboxes, undo, replay),
+// problems show with their paths, transport buttons work, a file opens and
+// downloads, and the draft survives a reload.
 //
 //   make editor-smoke        (builds build/editor first)
 "use strict";
@@ -66,7 +67,12 @@ async function main() {
     assert.match(await page.textContent("#events"), /skipped/);
     console.log("ok pause, resume, skip");
 
+    await visualEditor(page);
+
     // Problems with their paths.
+    await page.selectOption("#starter", "soft");
+    await page.waitForSelector(".validity.ok");
+    await page.click("#tab-source");
     const soft = await page.inputValue("#doc");
     await page.fill("#doc", soft.replace('"speed": 13', '"speed": 100'));
     await page.waitForSelector(".validity.bad");
@@ -108,6 +114,68 @@ async function main() {
     process.exit(1);
   }
   console.log("editor smoke test passed");
+}
+
+/** The Visual tab edits the document text and plays the line after an edit. */
+async function visualEditor(page) {
+  const doc = () => page.inputValue("#doc");
+  const json = async () => JSON.parse(await doc());
+  await page.selectOption("#starter", "soft");
+  await page.waitForSelector(".validity.ok");
+  await page.click("#tab-visual");
+  assert.ok(await page.isVisible("#visual"));
+  assert.ok(!(await page.isVisible("#doc")));
+
+  // A number field: type a value, then undo and redo it.
+  await page.fill('.row[data-path="speed"] .num', "20");
+  await page.press('.row[data-path="speed"] .num', "Enter");
+  assert.equal((await json()).speed, 20);
+  assert.match(await doc(), /\n  "speed": 20,\n/, "the form writes the starter style");
+  // Replay on change: audio runs (the starters played), so the edit plays the line.
+  await page.waitForFunction(() => !document.getElementById("stop").disabled, null, { timeout: 5000 });
+  await page.click("#stop");
+  await page.click("#undo");
+  assert.equal((await json()).speed, 13);
+  assert.equal(await page.inputValue('.row[data-path="speed"] .num'), "13");
+  await page.click("#redo");
+  assert.equal((await json()).speed, 20);
+
+  // A slider moves the value; reset removes the key (the default applies).
+  const slider = page.locator('.row[data-path="instruments.vowel.decayMs"] input[type=range]');
+  await slider.fill("400");
+  assert.equal((await json()).instruments.vowel.decayMs, 400);
+  await page.click('.row[data-path="speed"] .reset');
+  assert.equal((await json()).speed, undefined);
+  assert.ok(await page.$('.row.default[data-path="speed"]'), "a field left out shows its default");
+
+  // A dropdown, and a problem shown at its field.
+  await page.selectOption('.row[data-path="instruments.vowel.wave"] select', "saw");
+  assert.equal((await json()).instruments.vowel.wave, "saw");
+  await page.fill('.row[data-path="pitch"] .num', "30");
+  await page.press('.row[data-path="pitch"] .num', "Enter");
+  await page.waitForSelector('.row.bad[data-path="pitch"] .row-problem');
+  await page.click('.row[data-path="pitch"] .reset');
+  await page.waitForSelector(".validity.ok");
+
+  // Instrument tabs: the sonorant can fall back to the vowel's sound and get its own again.
+  await page.click('[data-instrument="sonorant"]');
+  await page.uncheck('input[data-own="sonorant"]');
+  assert.equal((await json()).instruments.sonorant, undefined);
+  await page.check('input[data-own="sonorant"]');
+  assert.deepEqual((await json()).instruments.sonorant, (await json()).instruments.vowel);
+
+  // Rhythm, a beat track and a percussion sound.
+  await page.check("input[data-rhythm]");
+  await page.selectOption('.beat select.add', "kick");
+  assert.equal((await json()).rhythm.beat.kick, "x...............");
+  await page.selectOption('[data-section="percussion"] select.add', "snare");
+  assert.deepEqual((await json()).percussion, { snare: {} });
+  await page.fill('.row[data-path="percussion.snare.note"] .num', "40");
+  await page.press('.row[data-path="percussion.snare.note"] .num', "Enter");
+  assert.equal((await json()).percussion.snare.note, 40);
+  await page.waitForSelector(".validity.ok");
+  assert.ok(await page.evaluate((t) => voiceEditor.loadVoice(t).ok, await doc()));
+  console.log("ok visual editor");
 }
 
 function streamText(stream) {

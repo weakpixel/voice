@@ -1,6 +1,7 @@
 package session
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/weakpixel/voice"
@@ -56,4 +57,20 @@ func instName(v *voice.Voice, i voice.Instrument) string {
 		return v.Percussion[p].Name
 	}
 	return i.String()
+}
+
+// PercussionDefaults returns each built-in percussion sound as the fields of
+// a voice file's percussion entry ("note" and the instrument fields), so the
+// page can show what an entry that starts from it inherits.
+func PercussionDefaults() map[string]map[string]any {
+	out := map[string]map[string]any{}
+	for _, name := range voice.PercussionNames() {
+		p, _ := voice.BuiltinPercussion(name)
+		data, _ := json.Marshal(p.Spec) // plain struct: cannot fail
+		fields := map[string]any{}
+		_ = json.Unmarshal(data, &fields)
+		fields["note"] = p.Note
+		out[name] = fields
+	}
+	return out
 }

@@ -46,6 +46,9 @@ func main() {
 		"peak":         js.FuncOf(func(js.Value, []js.Value) any { return float64(s.Peak()) }),
 		"audioReady":   js.FuncOf(func(js.Value, []js.Value) any { return b.audio.isReady() }),
 		"audioError":   js.FuncOf(func(js.Value, []js.Value) any { return b.audio.errText() }),
+		"percussionDefaults": js.FuncOf(func(js.Value, []js.Value) any {
+			return toJS(session.PercussionDefaults())
+		}),
 	}
 	js.Global().Set("voiceEditor", js.ValueOf(api))
 	// Tell the page the API is there (it waits for this event).
