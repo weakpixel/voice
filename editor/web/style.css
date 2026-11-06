@@ -20,8 +20,10 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: light dark;
 }
+/* Dark colours: when the system asks for them, or the Theme button chose
+   them (data-theme on <html>, see theme.js); "light" overrides the system. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #17181a;
     --grid: #34373c;
     --wave: #8da2c9;
@@ -42,6 +44,28 @@
     --ok: #7ee787;
   }
 }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #17181a;
+  --grid: #34373c;
+  --wave: #8da2c9;
+  --playhead: #ff6369;
+  --inst-vowel: #6d94ff;
+  --inst-sonorant: #4cc38a;
+  --inst-fricative: #f1a14c;
+  --inst-plosive: #e66bb4;
+  --inst-motif: #a98be8;
+  --inst-percussion: #9a9ea5;
+  --panel: #212326;
+  --text: #e4e5e7;
+  --muted: #9a9ea5;
+  --border: #3a3d42;
+  --accent: #6d94ff;
+  --accent-text: #0e1116;
+  --error: #ff7b72;
+  --ok: #7ee787;
+}
+:root[data-theme="light"] { color-scheme: light; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body {

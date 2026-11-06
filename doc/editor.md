@@ -18,6 +18,7 @@ A web page to edit `*.voice.json` files and hear them while you type. It runs en
 - For a voice with a rhythm, **Mute the beat** leaves out its drums (as when the game's music plays the beat), and **Music at** times the line to music at that tempo, coming in on the music's next bar, as a game does with `SayOptions.Clock`.
 - **Sample files**: an instrument with `"sample": "<file name>"` plays a recorded sound. Add the 16-bit PCM WAV files by dropping them on the page or with **Add WAV files**; the browser keeps them for the next visit (IndexedDB). A sample the page does not have is a problem at that instrument's `sample` field.
 - **Language** is the made-up language the preview speaks. Empty is the built-in one; paste or open a `*.lang.json` file, or start from the built-in language and change it. It has its own problem list and is kept with the draft, apart from the voice file.
+- **Theme** in the top bar cycles System, Light and Dark. System follows the browser's colour scheme; the other two override it, and the choice is kept in local storage. The game's own screen stays dark.
 - The page keeps the current document, the test line and the volume in the browser's local storage and restores them on the next visit.
 
 ### Dialogue mode

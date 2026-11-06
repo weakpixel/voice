@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="version" content="__VERSION__">
   <title>Voice Editor</title>
+  <script>
+    // Apply the chosen colour scheme before the first paint (theme.js owns the button).
+    try { const t = localStorage.getItem("voice-editor/theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+  </script>
   <link rel="stylesheet" href="style.css?v=__VERSION__">
   <script src="wasm_exec.js?v=__VERSION__"></script>
   <script type="module" src="app.js?v=__VERSION__"></script>
@@ -38,6 +42,7 @@
       <span class="icon" style="--icon: url(icons/copy.svg)"></span>Copy
     </button>
     <input id="file" type="file" accept=".json,application/json" hidden>
+    <button id="theme" type="button" title="Colour scheme: follow the system, or always light or dark"></button>
   </header>
 
   <main class="layout" id="voice-mode">

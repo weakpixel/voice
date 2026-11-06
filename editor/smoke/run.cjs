@@ -120,6 +120,8 @@ async function main() {
     console.log("ok share link");
     await dialogueMode(page);
     console.log("ok dialogue mode");
+    await themeToggle(page);
+    console.log("ok theme toggle");
   } catch (e) {
     failures.push(e.stack || String(e));
   } finally {
@@ -197,6 +199,29 @@ async function dialogueMode(page) {
   await page.click("#mode-voice");
   assert.equal(await page.getAttribute("body", "data-mode"), "voice");
   assert.ok(await page.isVisible("#voice-mode"), "the voice editor is back");
+}
+
+/** The Theme button forces light or dark whatever the system says, and remembers it. */
+async function themeToggle(page) {
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const theme = () => page.evaluate(() => document.documentElement.dataset.theme || "system");
+  await page.emulateMedia({ colorScheme: "light" });
+  assert.equal(await theme(), "system");
+  const systemLight = await bg();
+  await page.click("#theme"); // light
+  assert.equal(await theme(), "light");
+  assert.equal(await bg(), systemLight);
+  await page.click("#theme"); // dark, although the system is light
+  assert.equal(await theme(), "dark");
+  assert.notEqual(await bg(), systemLight, "dark colours applied");
+  assert.equal((await page.textContent("#theme")).trim(), "Theme: Dark");
+  await page.reload();
+  await page.waitForSelector("body[data-ready=true]");
+  assert.equal(await theme(), "dark", "the choice survives a reload");
+  await page.click("#theme"); // system again
+  assert.equal(await theme(), "system");
+  assert.equal(await bg(), systemLight);
+  await page.emulateMedia({ colorScheme: null });
 }
 
 /** How many notes the piano roll shows. */
