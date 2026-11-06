@@ -3,7 +3,7 @@
 // playback of a test line by the real Speaker on a synth stream that oto
 // plays. The text is the document; the form edits it through format.js.
 
-import { utf8, revealedText, locatePath, downloadName, docName, looksLikeVoice } from "./text.js";
+import { utf8, revealedText, locatePath, downloadName, docName, looksLikeVoice, looksLikeDialogue } from "./text.js";
 import { format } from "./format.js";
 import { VisualEditor } from "./visual.js";
 import { installTooltips } from "./tooltip.js";
@@ -12,6 +12,7 @@ import { saveSample, deleteSample, storedSamples } from "./samples.js";
 import { encodeShare, decodeShare } from "./share.js";
 import { initDialogue } from "./dialogue.js";
 import { initTheme } from "./theme.js";
+import { saveVoice, allVoices } from "./workspace.js";
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const docArea = /** @type {HTMLTextAreaElement} */ ($("doc"));
@@ -35,6 +36,10 @@ const VALIDATE_DELAY = 250; // ms after the last keystroke
 /** @type {any} the Go API, set once voice.wasm has started */
 let api = null;
 let openedName = ""; // file name of the opened document, "" for a starter or a new one
+let workspaceName = ""; // the name the document has in the workspace (its file name, or one made from its name)
+let starterNames = /** @type {string[]} */ ([]);
+/** @type {ReturnType<typeof initDialogue> | null} */
+let dialogue = null;
 let voiceOK = false;
 let voiceRhythm = false; // the voice speaks on a beat grid
 /** @type {VisualEditor | null} */
@@ -60,7 +65,7 @@ function saveDraft() {
   try {
     localStorage.setItem(
       DRAFT_KEY,
-      JSON.stringify({ doc: docArea.value, lang: langArea.value, line: lineInput.value, opened: openedName, volume: volume.value, view, replay: replay.checked }),
+      JSON.stringify({ doc: docArea.value, lang: langArea.value, line: lineInput.value, opened: openedName, ws: workspaceName, volume: volume.value, view, replay: replay.checked }),
     );
   } catch {
     // storage blocked or full: the draft is a convenience only
@@ -82,6 +87,8 @@ function parsed() {
 /** Replaces the document, e.g. after opening a file or picking a starter. */
 function setDocument(text, name) {
   openedName = name;
+  workspaceName = downloadName(text, name);
+  refreshVoiceList();
   fileHandle = null; // Save asks again where to save
   docArea.value = text;
   docArea.scrollTop = 0;
@@ -208,6 +215,7 @@ function validate() {
   const r = api.loadVoice(docArea.value);
   voiceOK = r.ok;
   if (r.ok) {
+    keepInWorkspace();
     voiceRhythm = r.rhythm;
     $("rhythm-options").hidden = !r.rhythm;
   }
@@ -218,6 +226,78 @@ function validate() {
   buttons.play.disabled = !r.ok;
   visual?.showProblems(r.problems || []);
   if (r.ok) scheduleRender();
+}
+
+// ---- the workspace: the voice files the Dialogue mode can name ----
+
+const voiceFilePicker = /** @type {HTMLSelectElement} */ ($("voice-file"));
+
+/** A valid document is kept in the workspace under its file name. */
+let keepTimer = 0;
+function keepInWorkspace() {
+  clearTimeout(keepTimer);
+  keepTimer = setTimeout(async () => {
+    if (!workspaceName) workspaceName = downloadName(docArea.value, openedName);
+    await saveVoice(workspaceName, docArea.value);
+    refreshVoiceList();
+  }, 400);
+}
+
+async function refreshVoiceList() {
+  const names = [...(await allVoices()).keys()];
+  voiceFilePicker.replaceChildren(...names.map((n) => new Option(n, n)));
+  if (!names.includes(workspaceName)) voiceFilePicker.append(new Option(`${workspaceName} (unsaved)`, workspaceName));
+  voiceFilePicker.value = workspaceName;
+}
+
+voiceFilePicker.addEventListener("change", async () => {
+  const name = voiceFilePicker.value;
+  const text = (await allVoices()).get(name);
+  if (text !== undefined && name !== workspaceName) setDocument(text, name);
+});
+
+/** Opens a voice of the workspace, or a starter, in the Voice mode (the Dialogue mode's "Edit voice"). */
+async function openVoiceForEditing(ref) {
+  try {
+    const files = await allVoices();
+    if (files.has(ref)) {
+      setDocument(/** @type {string} */ (files.get(ref)), ref);
+      return true;
+    }
+    if (starterNames.includes(ref)) {
+      setDocument(await loadStarter(ref), "");
+      toast(`Editing a copy, saved as ${workspaceName}; pick it as the speaker's voice to hear your changes.`);
+      return true;
+    }
+    toast(`No voice file ${ref} in the workspace`);
+  } catch (e) {
+    toast(String(e));
+  }
+  return false;
+}
+
+/** Says text with the voice in voiceText on the editor's own preview (the Dialogue mode's line buttons). */
+async function speakPreview(voiceText, text, opts) {
+  if (!api) return;
+  if (!(await audioStarted())) {
+    toast(api.audioError() || "Audio did not start. Click the page and try again.");
+    return;
+  }
+  const r = api.loadVoice(voiceText);
+  if (!r.ok) {
+    toast(`That voice has problems: ${r.problems?.[0]?.message ?? "see the Voice mode"}`);
+    return;
+  }
+  lineText = text;
+  lineBytes = utf8(text);
+  const tl = api.say(text, { speed: opts.speed, instant: opts.instant });
+  if (!tl) return;
+  auditioning = false;
+  roll.setTimeline(tl);
+  playing = true;
+  lastFrame = performance.now();
+  setTransport();
+  requestAnimationFrame(frame);
 }
 
 /** @param {{path: string, message: string}[]} problems */
@@ -547,7 +627,15 @@ function samplesChanged() {
 
 async function openFile(file) {
   try {
-    setDocument(await file.text(), file.name);
+    const text = await file.text();
+    if (looksLikeDialogue(text) && dialogue) {
+      dialogue.openDocument(text, file.name);
+      dialogue.show();
+    } else if (dialogue?.active()) {
+      await dialogue.addVoiceFiles([file]); // a voice file dropped on the Dialogue mode joins the workspace
+    } else {
+      setDocument(text, file.name);
+    }
   } catch (e) {
     toast(`Could not read ${file.name}: ${e}`);
   }
@@ -721,6 +809,7 @@ function wire() {
   }
   replay.addEventListener("change", saveDraft);
   document.addEventListener("keydown", (e) => {
+    if (document.body.dataset.mode === "dialogue") return; // the Dialogue mode has its own undo
     if (!(e.ctrlKey || e.metaKey) || e.altKey || e.target === lineInput || e.target === langArea) return;
     const k = e.key.toLowerCase();
     if (k === "s" && canSave) {
@@ -760,13 +849,17 @@ function wire() {
     const files = [...(e.dataTransfer?.files || [])];
     const wavs = files.filter((f) => /\.wav$/i.test(f.name));
     if (wavs.length) addSampleFiles(wavs);
-    const doc = files.find((f) => !/\.wav$/i.test(f.name));
-    if (doc) openFile(doc);
+    const docs = files.filter((f) => !/\.wav$/i.test(f.name));
+    for (const f of dialogue?.active() ? docs : docs.slice(0, 1)) openFile(f);
   });
   document.addEventListener("paste", (e) => {
-    if (e.target === docArea || e.target === lineInput || e.target === langArea) return;
+    if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
     const text = e.clipboardData?.getData("text") || "";
-    if (looksLikeVoice(text)) {
+    if (dialogue && looksLikeDialogue(text) && e.target !== document.getElementById("dlg-doc")) {
+      e.preventDefault();
+      dialogue.openDocument(text, "");
+      dialogue.show();
+    } else if (looksLikeVoice(text) && !dialogue?.active()) {
       e.preventDefault();
       setDocument(text, "");
     }
@@ -799,7 +892,9 @@ async function main() {
   buttons.play.disabled = true;
   const draft = loadDraft();
   const [names] = await Promise.all([fillStarters()]);
+  starterNames = names;
   if (draft) {
+    workspaceName = draft.ws || downloadName(draft.doc, draft.opened || "");
     docArea.value = draft.doc;
     langArea.value = draft.lang || "";
     lineInput.value = draft.line || lineInput.value;
@@ -833,7 +928,8 @@ async function main() {
   setView(draft?.view || "visual");
   setTransport();
   initTheme($("theme"), () => roll.draw());
-  initDialogue({ stopPreview: () => api?.stop(), toast });
+  refreshVoiceList();
+  dialogue = initDialogue({ stopPreview: () => api?.stop(), toast, starters: starterNames, speak: speakPreview, openVoice: openVoiceForEditing, restoreVoice: () => validate() });
   document.body.dataset.ready = "true";
 }
 

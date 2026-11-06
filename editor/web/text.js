@@ -75,3 +75,13 @@ export function looksLikeVoice(text) {
     return false;
   }
 }
+
+/** @param {string} text @returns {boolean} whether text looks like a dialogue document */
+export function looksLikeDialogue(text) {
+  try {
+    const v = JSON.parse(text);
+    return v !== null && typeof v === "object" && !Array.isArray(v) && Array.isArray(v.lines);
+  } catch {
+    return false;
+  }
+}
