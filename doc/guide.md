@@ -35,6 +35,68 @@ Each speaker needs its own owner on the stream, and the stream needs that owner'
 
 Every note the speaker starts ends with a `NoteOff` or a `Release` of its owner.
 
+## Dialogues (`*.dialogue.json`, package `dialogue`)
+
+A dialogue is a conversation: lines said by speakers, each speaker with its own voice. `dialogue.Load(r)` (or `LoadFS(fsys, name)`) reads the file, `LoadVoices(fsys, script)` loads the voices it names, and a `dialogue.Player` speaks it on a `voice.Sink`, one `voice.Speaker` per speaker.
+
+```json
+{
+  "version": 0,
+  "name": "village",
+  "advance": "input",
+  "hold": 1.0,
+  "speakers": [
+    { "id": "wren", "name": "Wren", "voice": "chirpy", "pan": -0.3 },
+    { "id": "bram", "name": "Bram", "voice": "bram.voice.json", "pan": 0.3 }
+  ],
+  "lines": [
+    { "speaker": "wren", "text": "Hello there, traveler! Are you lost?" },
+    { "speaker": "bram", "text": "Lost? No. Just... a little turned around.", "delay": 0.4, "speed": 0.9 },
+    { "speaker": "wren", "text": "Then follow me!", "advance": "auto", "hold": 0.5 }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `version` | required, `0` |
+| `name` | optional name of the dialogue |
+| `advance` | `"input"` (default): a finished line waits for `Next`; `"auto"`: it goes on by itself after its hold. Lines can override it |
+| `hold` | seconds a finished line stays before an auto advance, 0 to 10 (default 1) |
+| `speakers[]` | at least one. Speaker `i` plays as owner `i + 1` |
+| `speakers[].id` | required, unique, `[a-z0-9_-]+` |
+| `speakers[].name` | what a dialogue box shows (default: the id) |
+| `speakers[].voice` | required: a starter voice name (`chirpy`) or a `*.voice.json` file name relative to the dialogue file (no `..`) |
+| `speakers[].pan` | -1 to 1, replaces the voice's pan for this speaker |
+| `lines[]` | at least one |
+| `lines[].speaker`, `lines[].text` | required: the id of a speaker, and the text (not empty) |
+| `lines[].delay` | seconds before the line starts, 0 to 10 (default 0) |
+| `lines[].speed` | `SayOptions.Speed`, 0.25 to 4 (default 1) |
+| `lines[].instant` | `SayOptions.Instant` |
+| `lines[].advance`, `lines[].hold` | override the dialogue's values for this line |
+
+Every problem of a file is returned together (`errors.Join`) as a `voice.FieldError` with `File` `"dialogue"` and the JSON path (`lines[1].speaker`); `LoadFS` prefixes the file name. `Load` fills in every default, so a `Line`'s `Advance` and `Hold` are what the player uses. `LoadVoices` returns the voices keyed by the speaker's `voice` text; a voice that does not load is a problem at `speakers[i].voice`.
+
+```go
+script, _ := dialogue.LoadFS(fsys, "village.dialogue.json")
+voices, _ := dialogue.LoadVoices(fsys, script)
+player, _ := dialogue.NewPlayer(stream, script, voices, dialogue.Options{})
+for _, sv := range player.Voices() {
+	stream.SetVoice(sv.Owner, sv.Voice, nil) // the sink needs each speaker's instruments
+}
+
+// every frame:
+player.Update(dt)                          // on a click or key: player.Next()
+draw(player.Speaker().Name, player.Line().Text[:player.Revealed()])
+for _, e := range player.Events() { ... }  // LineStarted, LineDone, DialogueFinished
+```
+
+- `NewPlayer(sink, script, voices, opts)` works on copies of the voices with each speaker's pan applied, and starts line `opts.Start` at once. `Options.Languages(name)` resolves a voice's `language` name (nil or a nil result means the default language); `Options.AutoAdvance` makes every line advance by itself.
+- A line goes through the phases `Waiting` (its `delay`), `Speaking`, `Holding` (finished; waits for `Next`, or for its `hold` when it advances by itself) and, after the last line, `Finished`. `Phase()` tells which one. `Index()`, `Line()` and `Speaker()` describe the current line; `Revealed()` is how many bytes of its text to show (none while waiting, all while holding).
+- `Next()` is the input: while a line types out it shows the rest of it (`LineDone`), while a finished line holds it goes on to the next one (or finishes). During a delay and after the end it does nothing. `Start(i)` jumps to line `i` (it panics for an index outside the script), also after `Finished`. `Pause()` and `Resume()` stop and continue time everywhere; `Stop()` ends the dialogue (phase `Finished`, no event); `Close()` stops and makes later calls do nothing.
+- `Events()` are `LineStarted` (the delay passed and the line began), `LineDone` (it completed or was skipped) and `DialogueFinished`, each with the line index and `At`, the player's clock (the sum of the `Update` times). As with the speaker, the slice is valid until the next `Update`.
+- Like the speaker, every note the player starts ends: `Next`, `Start`, `Pause`, `Stop` and `Close` release the notes of the speaker involved. `Update` allocates nothing in steady state; starting a line does. The same script and options give the same events.
+
 ## Ebiten (module `github.com/weakpixel/voice/ebiten`)
 
 A nested module, so only programs that use it depend on Ebiten. `voiceebiten.NewPlayer(ctx, stream, bufferSize)` plays a `FormatFloat32` stream at the context's sample rate (an error otherwise) with the given buffer (0 means 50 ms, which keeps the sound within about a frame or three of the text). `SetVolume`, `Volume`, `Close`. Browsers start audio only after a click or key press; Ebiten resumes its context on the first input.

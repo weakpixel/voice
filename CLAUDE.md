@@ -15,6 +15,7 @@ Every topic has one home; link to it instead of repeating it. If code and a doc 
 | Package | Module | May import | What |
 | --- | --- | --- | --- |
 | `voice` (root) | `github.com/weakpixel/voice` | stdlib | `Language`, `Voice`, JSON loading, `Parse`, `Compose`, `Timeline`, `Speaker`, the `Sink` interface |
+| `voice/dialogue` | same | stdlib, root | Dialogues: the `*.dialogue.json` format (`Script`, `Load`, `LoadFS`, `LoadVoices`) and the `Player` that speaks it line by line on a `Sink` |
 | `voice/synth` | same | stdlib, root | Built-in synthesizer: oscillator and sample patches, voice pool, `Stream` (PCM `io.Reader`), implements `voice.Sink` |
 | `voice/wav` | same | stdlib | 16-bit PCM WAV in, float32 stereo WAV out |
 | `voice/voicetest` | same | stdlib, root | Test helpers such as a recording `Sink` |

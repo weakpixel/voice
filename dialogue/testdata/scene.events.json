@@ -1,0 +1,47 @@
+[
+  {
+    "kind": "line started",
+    "line": 0,
+    "atMs": 0
+  },
+  {
+    "kind": "line done",
+    "line": 0,
+    "atMs": 1267
+  },
+  {
+    "kind": "line started",
+    "line": 1,
+    "atMs": 2167
+  },
+  {
+    "kind": "line done",
+    "line": 1,
+    "atMs": 4367
+  },
+  {
+    "kind": "line started",
+    "line": 2,
+    "atMs": 4867
+  },
+  {
+    "kind": "line done",
+    "line": 2,
+    "atMs": 5733
+  },
+  {
+    "kind": "line started",
+    "line": 3,
+    "atMs": 5983
+  },
+  {
+    "kind": "line done",
+    "line": 3,
+    "atMs": 6800
+  },
+  {
+    "kind": "finished",
+    "line": 3,
+    "atMs": 7300
+  }
+]

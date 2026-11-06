@@ -70,6 +70,6 @@ A web page to edit voice files and hear them right away: `make editor-serve`, th
 
 ## Documentation
 
-- [doc/guide.md](doc/guide.md): user guide.
+- [doc/guide.md](doc/guide.md): user guide, including [dialogues](doc/guide.md#dialogues-dialoguejson-package-dialogue): a conversation of several speakers in a `*.dialogue.json` file and the `dialogue.Player` that speaks it.
 - [doc/editor.md](doc/editor.md): the Voice Editor.
 - [doc/design.md](doc/design.md): how it is built and why, measured costs, what is not built yet.
