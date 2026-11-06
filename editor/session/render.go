@@ -23,41 +23,80 @@ const (
 // (notes start at the block after they are due). It returns the two
 // channels and the timeline.
 func RenderLine(v *voice.Voice, lang *voice.Language, text string, o Options, rate int) (left, right []float32, tl voice.Timeline, err error) {
-	if v == nil {
-		return nil, nil, tl, errors.New("session: no voice")
-	}
-	st, err := synth.NewStream(synth.StreamConfig{SampleRate: rate})
+	r, err := NewLineRender(v, lang, text, o, rate)
 	if err != nil {
 		return nil, nil, tl, err
 	}
+	for !r.Step(1 << 30) {
+	}
+	return r.left, r.right, r.tl, nil
+}
+
+// LineRender is RenderLine in steps, so a page can render between frames
+// instead of blocking for the whole line (about a second for a long line
+// of divine in a browser).
+type LineRender struct {
+	sp *voice.Speaker
+	tl voice.Timeline
+	renderer
+	tail, quiet int
+	started     bool
+	done        bool
+}
+
+// NewLineRender prepares the render of a line; Step renders it.
+func NewLineRender(v *voice.Voice, lang *voice.Language, text string, o Options, rate int) (*LineRender, error) {
+	if v == nil {
+		return nil, errors.New("session: no voice")
+	}
+	st, err := synth.NewStream(synth.StreamConfig{SampleRate: rate})
+	if err != nil {
+		return nil, err
+	}
 	if err := st.SetVoice(owner, v, nil); err != nil {
-		return nil, nil, tl, err
+		return nil, err
 	}
 	if lang == nil {
 		lang = voice.DefaultLanguage()
 	}
 	sp := voice.NewSpeaker(st, owner)
 	sp.Say(v, text, o.say(lang))
-	tl = sp.Timeline()
+	return &LineRender{sp: sp, tl: sp.Timeline(), renderer: renderer{st: st, rate: rate}}, nil
+}
 
-	r := renderer{st: st, rate: rate}
-	sp.Update(0)
-	for !sp.Done() {
-		r.block()
-		sp.Update(r.step())
+// Step renders up to blocks blocks of synth.BlockFrames and reports whether
+// the render is complete.
+func (r *LineRender) Step(blocks int) bool {
+	if !r.started {
+		r.sp.Update(0)
+		r.started = true
 	}
-	quiet, tail := 0, 0
-	need, limit := frames(silenceTime, rate), frames(maxTail, rate)
-	for quiet < need && tail < limit {
+	for ; blocks > 0 && !r.done; blocks-- {
+		if !r.sp.Done() {
+			r.block()
+			r.sp.Update(r.step())
+			continue
+		}
+		// The tail: until the output stays quiet, at most maxTail.
+		need, limit := frames(silenceTime, r.rate), frames(maxTail, r.rate)
+		if r.quiet >= need || r.tail >= limit {
+			r.done = true
+			break
+		}
 		n := r.block()
-		tail += n
+		r.tail += n
 		if r.peakOfLast(n) < silenceLevel {
-			quiet += n
+			r.quiet += n
 		} else {
-			quiet = 0
+			r.quiet = 0
 		}
 	}
-	return r.left, r.right, tl, nil
+	return r.done
+}
+
+// Result returns the render so far and the line's timeline.
+func (r *LineRender) Result() (left, right []float32, tl voice.Timeline) {
+	return r.left, r.right, r.tl
 }
 
 func frames(d time.Duration, rate int) int { return int(d.Seconds() * float64(rate)) }

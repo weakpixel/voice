@@ -10,6 +10,8 @@ A web page to edit `*.voice.json` files and hear them while you type. It runs en
 - Every change is checked by the library itself: **Problems** lists what is wrong, each with the JSON path of its value, and the form marks the field; click a problem to select it in the text. The file format is in the [guide](guide.md#voices-voicejson).
 - **Undo** and **Redo** (Ctrl+Z, Ctrl+Shift+Z) step through the edits of both tabs.
 - **Play** speaks the test line with the voice; the text types out as it is spoken. **Pause**, **Resume**, **Skip** and **Stop** do what they do in a game (`Speaker.Pause`, `Resume`, `Skip`, `Stop`). Enter in the test line plays it too. Browsers start audio only after a click or key press; the first Play is that click.
+- **Hear** plays a short phrase on one instrument (next to the instrument tabs) or a few hits of one drum (on its card and its beat row), the same phrase `voiceplay -patches` plays. **Stop** ends it.
+- Under the text, the **piano roll** shows the line's notes, one row per semitone and coloured by instrument, the drums in a band at the bottom and small ticks at the top where the text moves on; the **waveform** under it is the line as rendered, with the reverb ringing out. Both follow every edit, and a red playhead runs along them while the line plays. **WAV** downloads that render as `<name>-line.wav`.
 - A valid edit applies at once: change an instrument while a line plays and the next notes use the new sound. Changes to timing and pitch are heard the next time the line plays: with **Replay on change** on, the line plays again after such an edit (and after any edit while nothing plays), once audio has started.
 - **Download** saves the file (under the name it was opened with, else the voice's name), **Copy** puts the JSON on the clipboard. Only valid voices play; any text can be downloaded.
 - The page keeps the current document, the test line and the volume in the browser's local storage and restores them on the next visit.
@@ -22,7 +24,7 @@ Voices with sample instruments (`"sample": ...`) and custom languages are not su
 make editor        # the site in build/editor (voice.wasm, wasm_exec.js from your Go, the page, the starter voices)
 make editor-serve  # builds and serves it on http://localhost:8000
 make editor-test   # node --test of the page's scripts
-make editor-smoke  # headless Chromium: every starter plays, problems, transport, open, download, draft
+make editor-smoke  # headless Chromium: every starter plays, problems, transport, open, download, draft, roll, Hear, WAV
 ```
 
 `make editor-smoke` needs Playwright with Chromium (`require('playwright')` must work, for example through `NODE_PATH`). The site is static and uses relative URLs, so any static file server works; it must serve `.wasm` as `application/wasm`.

@@ -39,6 +39,7 @@ type State struct {
 	Revealed int           // bytes of the text to show
 	Done     bool          // no line is playing
 	Paused   bool          // the line is paused
+	Audition bool          // an audition is playing (Done is true meanwhile)
 	Time     time.Duration // position in the line's timeline (scaled by the speed)
 	Events   []voice.Event // since the previous Update; reused, valid until the next one
 }
@@ -56,6 +57,7 @@ type Session struct {
 	text  string
 	speed float64
 	t     time.Duration
+	aud   audition
 }
 
 // New returns a session whose stream runs at rate (float32 stereo).
@@ -107,6 +109,7 @@ func (s *Session) Say(text string, o Options) error {
 	if s.v == nil {
 		return errors.New("session: no voice")
 	}
+	s.stopAudition()
 	s.text, s.speed, s.t = text, o.speed(), 0
 	s.sp.Say(s.v, text, o.say(s.lang))
 	return nil
@@ -114,6 +117,10 @@ func (s *Session) Say(text string, o Options) error {
 
 // Update advances the line by the frame time dt. Allocates nothing.
 func (s *Session) Update(dt time.Duration) {
+	if s.aud.playing() {
+		s.advanceAudition(max(dt, 0))
+		s.t = s.aud.t
+	}
 	if !s.sp.Done() && !s.sp.Paused() && dt > 0 {
 		s.t = min(s.t+time.Duration(float64(dt)*s.speed), s.sp.Timeline().Duration)
 	}
@@ -121,10 +128,10 @@ func (s *Session) Update(dt time.Duration) {
 }
 
 // Skip shows the whole text and releases the notes.
-func (s *Session) Skip() { s.sp.Skip() }
+func (s *Session) Skip() { s.stopAudition(); s.sp.Skip() }
 
 // Stop releases the notes and leaves the text as it is.
-func (s *Session) Stop() { s.sp.Stop() }
+func (s *Session) Stop() { s.stopAudition(); s.sp.Stop() }
 
 // Pause stops time and releases the sounding notes.
 func (s *Session) Pause() { s.sp.Pause() }
@@ -134,7 +141,7 @@ func (s *Session) Resume() { s.sp.Resume() }
 
 // State returns the speaker's state after the last Update.
 func (s *Session) State() State {
-	return State{Revealed: s.sp.Revealed(), Done: s.sp.Done(), Paused: s.sp.Paused(), Time: s.t, Events: s.sp.Events()}
+	return State{Revealed: s.sp.Revealed(), Done: s.sp.Done(), Paused: s.sp.Paused(), Audition: s.aud.playing(), Time: s.t, Events: s.sp.Events()}
 }
 
 // Text returns the current line's text.

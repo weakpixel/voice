@@ -106,6 +106,9 @@ async function main() {
 
     await soundSurvives(page);
     console.log("ok sound survives edits");
+
+    await rollAuditionWAV(page);
+    console.log("ok piano roll, waveform, audition, WAV");
   } catch (e) {
     failures.push(e.stack || String(e));
   } finally {
@@ -117,6 +120,33 @@ async function main() {
     process.exit(1);
   }
   console.log("editor smoke test passed");
+}
+
+/** The roll and waveform follow the document, Hear plays an instrument, WAV downloads the line. */
+async function rollAuditionWAV(page) {
+  await page.selectOption("#starter", "flow");
+  await page.waitForSelector(".validity.ok");
+  await page.waitForFunction(() => Number(document.getElementById("roll").dataset.notes) > 0, null, { timeout: 5000 });
+  if (await page.isEnabled("#stop")) await page.click("#stop"); // a replaying line holds the waveform back
+  await page.waitForFunction(() => Number(document.getElementById("wave").dataset.columns) > 10, null, { timeout: 10000 });
+  const before = await page.getAttribute("#roll", "data-notes");
+  await page.fill("#line", "Yo.");
+  await page.waitForFunction((n) => document.getElementById("roll").dataset.notes !== n, before, { timeout: 5000 });
+
+  await page.click("#tab-visual");
+  for (const name of ["vowel", "kick"]) {
+    await page.click(`[data-audition="${name}"]`);
+    await page.waitForTimeout(600);
+    const peak = Number(await page.getAttribute("#meter-bar", "data-max-peak"));
+    assert.ok(peak > 0.01, `audition ${name}: peak ${peak}`);
+  }
+
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#wav")]);
+  assert.equal(dl.suggestedFilename(), "flow-line.wav");
+  const data = require("node:fs").readFileSync(await dl.path());
+  assert.equal(data.subarray(0, 4).toString(), "RIFF");
+  assert.equal(data.subarray(8, 12).toString(), "WAVE");
+  assert.ok(data.length > 48000 * 8 * 0.3, `WAV of ${data.length} bytes`);
 }
 
 /**
