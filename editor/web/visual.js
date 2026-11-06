@@ -5,6 +5,7 @@
 // back from the page and are shown at their field.
 
 import { get, set, remove } from "./format.js";
+import { toggleStep, nextAccent, defaultAccents, resample, resamplePattern } from "./beat.js";
 
 /**
  * @typedef {{key: string, label: string, kind: string, min?: number, max?: number,
@@ -98,6 +99,7 @@ export class VisualEditor {
   /** A value changed; commit is false while a slider moves or a text is typed. */
   change(path, value, commit) {
     this.doc = value === undefined ? remove(this.doc, path) : set(this.doc, path, value);
+    if (path === "rhythm.division") this.doc = fitBeat(this.doc);
     if (commit) this.render(this.doc); // defaults, reset buttons and dependent rows follow
     this.onChange(this.doc, { commit });
   }
@@ -197,7 +199,7 @@ export class VisualEditor {
       "div",
       {},
       this.groups(osc, prefix, defaults),
-      el("details", { class: "sample", open: usesSample }, el("summary", {}, "Sample (not playable in the editor yet)"), this.groups(sample, prefix, defaults)),
+      el("details", { class: "sample", open: usesSample }, el("summary", {}, "Sample (a recorded sound instead of the oscillator)"), this.groups(sample, prefix, defaults)),
     );
   }
 
@@ -218,31 +220,53 @@ export class VisualEditor {
     return this.section("Rhythm", "rhythm", toggle, this.groups(this.fields.rhythm, "rhythm."), this.beat());
   }
 
-  /** One pattern per percussion sound of the beat, and a menu to add one. */
+  /**
+   * The beat grid: an accents row and one row of steps per percussion
+   * sound, one cell per step of a bar, and a menu to add a sound. A click
+   * on a step cycles rest, hit, ghost hit; on an accent none, medium,
+   * strong.
+   */
   beat() {
     const beat = get(this.doc, "rhythm.beat") || {};
     const division = Number(get(this.doc, "rhythm.division") ?? 4);
     const steps = 4 * division;
     const defined = Object.keys(get(this.doc, "percussion") || {});
     const sounds = [...new Set([...defined, ...this.fields.options.percussion])].filter((s) => !(s in beat));
-    const rows = Object.entries(beat).map(([sound, pattern]) => {
+
+    const own = get(this.doc, "rhythm.accents");
+    const accents = Array.isArray(own) && own.length === steps ? own : defaultAccents(division);
+    const accentRow = el(
+      "div",
+      { class: `row${own === undefined ? " default" : ""}`, dataset: { path: "rhythm.accents" }, title: "How strongly each step is stressed: a syllable on a strong step is louder and a little higher. Click a step to change it (none, medium, strong)." },
+      el("span", { class: "label" }, "Accents"),
+      this.steps(steps, division, (i) => {
+        const a = accents[i] ?? 0;
+        return { cls: a >= 1 ? "strong" : a > 0 ? "medium" : "", label: `Step ${i + 1}: accent ${a}`, style: `--level: ${a}` };
+      }, (i) => this.change("rhythm.accents", accents.map((a, j) => (j === i ? nextAccent(a) : a)), true)),
+      el(
+        "div",
+        { class: "actions" },
+        el("button", { type: "button", class: "reset", title: "Back to the default accents (remove the field)", hidden: own === undefined, onclick: () => this.structural(remove(this.doc, "rhythm.accents")) }, "↺"),
+      ),
+    );
+
+    const rows = Object.entries(beat).map(([sound, raw]) => {
       const path = `rhythm.beat.${sound}`;
+      const pattern = String(raw).padEnd(steps, ".").slice(0, steps);
       return el(
         "div",
         { class: "row", dataset: { path } },
         el("span", { class: "label", title: this.optionTip("percussion", get(this.doc, `percussion.${sound}.base`) || sound) }, sound),
-        el("input", {
-          type: "text",
-          class: "pattern",
-          value: pattern,
-          maxlength: 32,
-          spellcheck: "false",
-          title: `${steps} steps: x hit, - ghost hit, . rest`,
-          oninput: (e) => this.change(path, e.target.value, false),
-          onchange: (e) => this.change(path, e.target.value, true),
-        }),
-        this.auditionButton(sound, `Hear the ${sound}`),
-        el("button", { type: "button", class: "small", title: "Remove from the beat", onclick: () => this.structural(remove(this.doc, path)) }, "Remove"),
+        this.steps(steps, division, (i) => {
+          const ch = pattern[i];
+          return { cls: ch === "x" ? "hit" : ch === "-" ? "ghost" : "", label: `Step ${i + 1}: ${ch === "x" ? "hit" : ch === "-" ? "ghost hit" : "rest"}` };
+        }, (i) => this.change(path, toggleStep(pattern, i), true)),
+        el(
+          "div",
+          { class: "actions" },
+          this.auditionButton(sound, `Hear the ${sound}`),
+          el("button", { type: "button", class: "small", title: "Remove from the beat", onclick: () => this.structural(remove(this.doc, path)) }, "Remove"),
+        ),
       );
     });
     const add = el(
@@ -258,7 +282,28 @@ export class VisualEditor {
       el("option", { value: "" }, "Add a sound to the beat…"),
       ...sounds.map((s) => el("option", { value: s, title: this.optionTip("percussion", s) }, s)),
     );
-    return el("div", { class: "group beat" }, el("h4", {}, "Beat patterns"), ...rows, add);
+    const hint = el("p", { class: "hint" }, "Click a step: hit (full), ghost hit (half, quieter), rest (empty). Each group of cells is one beat.");
+    return el("div", { class: "group beat" }, el("h4", {}, "Drum pattern"), hint, accentRow, ...rows, add);
+  }
+
+  /** A row of step cells; cell(i) gives a cell's class, label and style. */
+  steps(n, division, cell, onClick) {
+    return el(
+      "div",
+      { class: "steps", style: `--steps: ${n}` },
+      ...Array.from({ length: n }, (_, i) => {
+        const c = cell(i);
+        return el("button", {
+          type: "button",
+          class: `step ${c.cls}${i % division === 0 ? " beat-start" : ""}`,
+          dataset: { step: String(i) },
+          "aria-label": c.label,
+          title: c.label,
+          style: c.style,
+          onclick: () => onClick(i),
+        });
+      }),
+    );
   }
 
   percussionSection() {
@@ -469,10 +514,25 @@ export class VisualEditor {
             id,
             type: "text",
             value: value ?? "",
+            list: f.key === "sample" ? "sample-names" : undefined, // the added sample files
             oninput: (e) => this.change(path, e.target.value === "" ? undefined : e.target.value, false),
             onchange: (e) => commitChange(e.target.value === "" ? undefined : e.target.value),
           }),
         );
     }
   }
+}
+
+/**
+ * Fits the beat patterns and the accents to the rhythm's steps per beat
+ * after it changed, so the grid keeps the steps that still fit.
+ */
+function fitBeat(doc) {
+  const steps = 4 * Number(get(doc, "rhythm.division") ?? 4);
+  for (const [sound, pattern] of Object.entries(get(doc, "rhythm.beat") || {})) {
+    doc = set(doc, `rhythm.beat.${sound}`, resamplePattern(String(pattern), steps));
+  }
+  const accents = get(doc, "rhythm.accents");
+  if (Array.isArray(accents)) doc = set(doc, "rhythm.accents", resample(accents, steps, 0));
+  return doc;
 }

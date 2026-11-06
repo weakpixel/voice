@@ -8,9 +8,12 @@ import { format } from "./format.js";
 import { VisualEditor } from "./visual.js";
 import { installTooltips } from "./tooltip.js";
 import { PianoRoll } from "./pianoroll.js";
+import { saveSample, deleteSample, storedSamples } from "./samples.js";
+import { encodeShare, decodeShare } from "./share.js";
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const docArea = /** @type {HTMLTextAreaElement} */ ($("doc"));
+const langArea = /** @type {HTMLTextAreaElement} */ ($("lang"));
 const lineInput = /** @type {HTMLInputElement} */ ($("line"));
 const starter = /** @type {HTMLSelectElement} */ ($("starter"));
 const fileInput = /** @type {HTMLInputElement} */ ($("file"));
@@ -31,6 +34,7 @@ const VALIDATE_DELAY = 250; // ms after the last keystroke
 let api = null;
 let openedName = ""; // file name of the opened document, "" for a starter or a new one
 let voiceOK = false;
+let voiceRhythm = false; // the voice speaks on a beat grid
 /** @type {VisualEditor | null} */
 let visual = null;
 let view = "visual"; // "visual" or "source"
@@ -54,7 +58,7 @@ function saveDraft() {
   try {
     localStorage.setItem(
       DRAFT_KEY,
-      JSON.stringify({ doc: docArea.value, line: lineInput.value, opened: openedName, volume: volume.value, view, replay: replay.checked }),
+      JSON.stringify({ doc: docArea.value, lang: langArea.value, line: lineInput.value, opened: openedName, volume: volume.value, view, replay: replay.checked }),
     );
   } catch {
     // storage blocked or full: the draft is a convenience only
@@ -76,6 +80,7 @@ function parsed() {
 /** Replaces the document, e.g. after opening a file or picking a starter. */
 function setDocument(text, name) {
   openedName = name;
+  fileHandle = null; // Save asks again where to save
   docArea.value = text;
   docArea.scrollTop = 0;
   validate();
@@ -141,7 +146,7 @@ function updateUndo() {
 // ---- views ----
 
 function setView(v) {
-  view = v === "source" ? "source" : "visual";
+  view = ["source", "language"].includes(v) ? v : "visual";
   for (const b of document.querySelectorAll("[data-view]")) {
     const on = /** @type {HTMLElement} */ (b).dataset.view === view;
     b.classList.toggle("active", on);
@@ -149,6 +154,7 @@ function setView(v) {
   }
   $("visual").hidden = view !== "visual";
   docArea.hidden = view !== "source";
+  $("language").hidden = view !== "language";
   refreshVisual();
   saveDraft();
 }
@@ -199,6 +205,10 @@ function validate() {
   if (!api) return;
   const r = api.loadVoice(docArea.value);
   voiceOK = r.ok;
+  if (r.ok) {
+    voiceRhythm = r.rhythm;
+    $("rhythm-options").hidden = !r.rhythm;
+  }
   showProblems(r.problems || []);
   const v = $("validity");
   v.textContent = r.ok ? "Valid" : `${(r.problems || []).length} problem${(r.problems || []).length === 1 ? "" : "s"}`;
@@ -271,7 +281,7 @@ async function play() {
   }
   lineText = lineInput.value;
   lineBytes = utf8(lineText);
-  const tl = api.say(lineText, { speed: 1 });
+  const tl = api.say(lineText, sayOptions());
   if (!tl) return;
   auditioning = false;
   roll.setTimeline(tl);
@@ -375,7 +385,19 @@ let renderedKey = "";
 
 /** What the render depends on: the document and the line. */
 function renderKey() {
-  return `${docArea.value}\u0000${lineInput.value}`;
+  return `${docArea.value}\u0000${lineInput.value}\u0000${JSON.stringify(sayOptions())}`;
+}
+
+/** The preview options of a line: the music clock and the beat's mute, for rhythmic voices. */
+function sayOptions() {
+  const o = { speed: 1 };
+  if (!voiceRhythm) return o;
+  o.muteBeat = /** @type {HTMLInputElement} */ ($("mute-beat")).checked;
+  if (/** @type {HTMLInputElement} */ ($("clock")).checked) {
+    o.bpm = Number(/** @type {HTMLInputElement} */ ($("clock-bpm")).value) || 100;
+    o.phase = Math.max(0, Number(/** @type {HTMLInputElement} */ ($("clock-phase")).value) || 0);
+  }
+  return o;
 }
 
 /** Renders the line again once edits settle. */
@@ -399,7 +421,7 @@ function renderNow() {
   const job = ++renderJob;
   renderingKey = key;
   renderPromise = (async () => {
-    if (!api.renderStart(lineInput.value, { speed: 1 })) return false;
+    if (!api.renderStart(lineInput.value, sayOptions())) return false;
     for (;;) {
       const budget = playing ? 3 : 10; // ms per frame
       const t0 = performance.now();
@@ -444,7 +466,82 @@ function control(action) {
   setTransport();
 }
 
-// ---- files ----
+// ---- language ----
+
+let langTimer = 0;
+
+/** Loads the language text in Go (empty is the built-in language) and lists its problems. */
+function validateLanguage() {
+  if (!api) return;
+  const r = api.loadLanguage(langArea.value);
+  const problems = r.problems || [];
+  const state = $("lang-state");
+  state.textContent = langArea.value.trim() === "" ? "Built-in" : r.ok ? "Valid" : `${problems.length} problem${problems.length === 1 ? "" : "s"}`;
+  state.className = `validity ${r.ok ? "ok" : "bad"}`;
+  $("tab-language").classList.toggle("bad", !r.ok);
+  $("lang-problems").replaceChildren(
+    ...problems.map((p) => Object.assign(document.createElement("li"), { textContent: p.path ? `${p.path}: ${p.message}` : p.message })),
+  );
+  if (r.ok) {
+    renderedKey = ""; // the same document and line sound different in another language
+    scheduleRender();
+  }
+}
+
+function setLanguage(text) {
+  langArea.value = text;
+  validateLanguage();
+  saveDraft();
+}
+
+/** Adds WAV files as samples (by file name), keeps them and checks the voice again. */
+async function addSampleFiles(files) {
+  for (const f of files) {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const err = api.addSample(f.name, bytes);
+    if (err) {
+      toast(err);
+      continue;
+    }
+    await saveSample(f.name, bytes);
+  }
+  samplesChanged();
+}
+
+async function removeSample(name) {
+  api.removeSample(name);
+  await deleteSample(name);
+  samplesChanged();
+}
+
+/** Shows the added samples and checks the voice again (a sample may now resolve). */
+function samplesChanged() {
+  const names = api.samples() || [];
+  const list = $("samples");
+  list.replaceChildren();
+  if (!names.length) {
+    const li = document.createElement("li");
+    li.className = "none";
+    li.textContent = "None";
+    list.append(li);
+  }
+  for (const n of names) {
+    const li = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = n;
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "small";
+    rm.textContent = "Remove";
+    rm.title = `Forget ${n}`;
+    rm.addEventListener("click", () => removeSample(n));
+    li.append(label, rm);
+    list.append(li);
+  }
+  $("sample-names").replaceChildren(...names.map((n) => Object.assign(document.createElement("option"), { value: n })));
+  renderedKey = ""; // the same document may sound different now
+  validate();
+}
 
 async function openFile(file) {
   try {
@@ -464,6 +561,64 @@ function download() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Save writes back to a file through the File System Access API where the
+// browser has it (Chromium); elsewhere only Download is offered.
+const canSave = "showSaveFilePicker" in window;
+/** @type {any} the file the document was opened from or saved to, if any */
+let fileHandle = null;
+
+/** Opens a voice file through the file picker that can save back to it. */
+async function openWithHandle() {
+  try {
+    const [h] = await /** @type {any} */ (window).showOpenFilePicker({ types: [{ description: "Voice file", accept: { "application/json": [".json"] } }] });
+    const file = await h.getFile();
+    setDocument(await file.text(), file.name);
+    fileHandle = h;
+  } catch (e) {
+    if (e?.name !== "AbortError") toast(String(e));
+  }
+}
+
+/** Saves to the opened file, or asks where to save the first time. */
+async function save() {
+  try {
+    if (!fileHandle) {
+      fileHandle = await /** @type {any} */ (window).showSaveFilePicker({
+        suggestedName: downloadName(docArea.value, openedName),
+        types: [{ description: "Voice file", accept: { "application/json": [".json"] } }],
+      });
+      openedName = fileHandle.name;
+    }
+    const w = await fileHandle.createWritable();
+    await w.write(docArea.value);
+    await w.close();
+    $("doc-name").textContent = openedName;
+    toast(`Saved ${fileHandle.name}`);
+  } catch (e) {
+    if (e?.name !== "AbortError") toast(`Could not save: ${e}`);
+  }
+}
+
+/** Copies a link that opens the current document. */
+async function share() {
+  const url = location.href.split("#")[0] + (await encodeShare(docArea.value));
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("Link copied");
+  } catch {
+    prompt("Copy this link:", url);
+  }
+}
+
+/** Opens the document a share link carries, then clears the link from the address. */
+async function openShared() {
+  const text = await decodeShare(location.hash);
+  if (text === null) return false;
+  window.history.replaceState(null, "", location.pathname + location.search);
+  setDocument(text, "");
+  return true;
 }
 
 async function copy() {
@@ -507,6 +662,35 @@ function wire() {
     scheduleRender();
   });
   $("wav").addEventListener("click", downloadWAV);
+  langArea.addEventListener("input", () => {
+    clearTimeout(langTimer);
+    langTimer = setTimeout(() => {
+      validateLanguage();
+      saveDraft();
+    }, VALIDATE_DELAY);
+  });
+  const langFile = /** @type {HTMLInputElement} */ ($("lang-file"));
+  $("lang-open").addEventListener("click", () => langFile.click());
+  langFile.addEventListener("change", async () => {
+    const f = langFile.files?.[0];
+    langFile.value = "";
+    if (f) setLanguage(await f.text());
+  });
+  $("lang-builtin").addEventListener("click", async () => {
+    try {
+      setLanguage(await (await fetch("presets/default.lang.json")).text());
+    } catch (e) {
+      toast(String(e));
+    }
+  });
+  $("lang-clear").addEventListener("click", () => setLanguage(""));
+  const sampleFile = /** @type {HTMLInputElement} */ ($("sample-file"));
+  $("add-sample").addEventListener("click", () => sampleFile.click());
+  sampleFile.addEventListener("change", () => {
+    if (sampleFile.files?.length) addSampleFiles([...sampleFile.files]);
+    sampleFile.value = "";
+  });
+  for (const id of ["mute-beat", "clock", "clock-bpm", "clock-phase"]) $(id).addEventListener("change", scheduleRender);
   lineInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") play();
   });
@@ -518,7 +702,11 @@ function wire() {
     api?.setVolume(Number(volume.value));
     saveDraft();
   });
-  $("open").addEventListener("click", () => fileInput.click());
+  $("open").addEventListener("click", () => (canSave ? openWithHandle() : fileInput.click()));
+  $("save").hidden = !canSave;
+  $("save").addEventListener("click", save);
+  $("share").addEventListener("click", share);
+  window.addEventListener("hashchange", openShared);
   fileInput.addEventListener("change", () => {
     if (fileInput.files?.[0]) openFile(fileInput.files[0]);
     fileInput.value = "";
@@ -531,8 +719,13 @@ function wire() {
   }
   replay.addEventListener("change", saveDraft);
   document.addEventListener("keydown", (e) => {
-    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.target === lineInput) return;
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.target === lineInput || e.target === langArea) return;
     const k = e.key.toLowerCase();
+    if (k === "s" && canSave) {
+      e.preventDefault();
+      save();
+      return;
+    }
     if (k === "z" || k === "y") {
       e.preventDefault();
       step(k === "y" || e.shiftKey ? 1 : -1);
@@ -562,11 +755,14 @@ function wire() {
     e.preventDefault();
     depth = 0;
     drop.hidden = true;
-    const f = e.dataTransfer?.files?.[0];
-    if (f) openFile(f);
+    const files = [...(e.dataTransfer?.files || [])];
+    const wavs = files.filter((f) => /\.wav$/i.test(f.name));
+    if (wavs.length) addSampleFiles(wavs);
+    const doc = files.find((f) => !/\.wav$/i.test(f.name));
+    if (doc) openFile(doc);
   });
   document.addEventListener("paste", (e) => {
-    if (e.target === docArea || e.target === lineInput) return;
+    if (e.target === docArea || e.target === lineInput || e.target === langArea) return;
     const text = e.clipboardData?.getData("text") || "";
     if (looksLikeVoice(text)) {
       e.preventDefault();
@@ -603,6 +799,7 @@ async function main() {
   const [names] = await Promise.all([fillStarters()]);
   if (draft) {
     docArea.value = draft.doc;
+    langArea.value = draft.lang || "";
     lineInput.value = draft.line || lineInput.value;
     openedName = draft.opened || "";
     volume.value = draft.volume || volume.value;
@@ -619,13 +816,16 @@ async function main() {
     return;
   }
   api.setVolume(Number(volume.value));
+  for (const [name, bytes] of await storedSamples()) api.addSample(name, bytes);
   try {
     const fields = await (await fetch("fields.json")).json();
     visual = new VisualEditor($("visual"), fields, api.percussionDefaults(), onVisualChange, audition);
   } catch (e) {
     toast(`The visual editor could not load: ${e}`);
   }
-  validate();
+  validateLanguage();
+  samplesChanged(); // lists the samples and validates
+  await openShared();
   record();
   committedDoc = parsed();
   setView(draft?.view || "visual");

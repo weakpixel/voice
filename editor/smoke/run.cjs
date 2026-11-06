@@ -109,6 +109,15 @@ async function main() {
 
     await rollAuditionWAV(page);
     console.log("ok piano roll, waveform, audition, WAV");
+
+    await beatGrid(page);
+    console.log("ok beat grid, accents, mute beat");
+    await samples(page);
+    console.log("ok sample files");
+    await language(page);
+    console.log("ok language");
+    await shareLink(page, context);
+    console.log("ok share link");
   } catch (e) {
     failures.push(e.stack || String(e));
   } finally {
@@ -120,6 +129,110 @@ async function main() {
     process.exit(1);
   }
   console.log("editor smoke test passed");
+}
+
+/** How many notes the piano roll shows. */
+async function rollNotes(page) {
+  return Number(await page.getAttribute("#roll", "data-notes"));
+}
+
+/** The beat grid edits the patterns and accents; mute beat leaves the drums out of the line. */
+async function beatGrid(page) {
+  const json = async () => JSON.parse(await page.inputValue("#doc"));
+  await page.selectOption("#starter", "flow");
+  await page.waitForSelector(".validity.ok");
+  await page.click("#tab-visual");
+  const before = (await json()).rhythm.beat.kick;
+  await page.click('[data-path="rhythm.beat.kick"] [data-step="1"]');
+  const after = (await json()).rhythm.beat.kick;
+  assert.equal(after[1], before[1] === "." ? "x" : before[1] === "x" ? "-" : ".", "a click cycles the step");
+  await page.click('[data-path="rhythm.accents"] [data-step="1"]');
+  assert.equal((await json()).rhythm.accents.length, 16, "a click writes all accents");
+  await page.selectOption('.row[data-path="rhythm.division"] select', "3");
+  const r = (await json()).rhythm;
+  assert.ok(Object.values(r.beat).every((p) => p.length === 12) && r.accents.length === 12, "steps per beat refits the bar");
+  await page.waitForSelector(".validity.ok");
+  if (await page.isEnabled("#stop")) await page.click("#stop");
+  await page.waitForFunction(() => !document.getElementById("rhythm-options").hidden);
+  await page.waitForTimeout(1500);
+  const withBeat = await rollNotes(page);
+  await page.check("#mute-beat");
+  await page.waitForFunction((n) => Number(document.getElementById("roll").dataset.notes) < n, withBeat, { timeout: 5000 });
+  await page.uncheck("#mute-beat");
+}
+
+/** A 16-bit PCM mono WAV: a 440 Hz sine of half a second. */
+function sineWAV() {
+  const rate = 22050;
+  const n = rate / 2;
+  const b = Buffer.alloc(44 + 2 * n);
+  b.write("RIFF", 0);
+  b.writeUInt32LE(36 + 2 * n, 4);
+  b.write("WAVEfmt ", 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(rate, 24);
+  b.writeUInt32LE(rate * 2, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write("data", 36);
+  b.writeUInt32LE(2 * n, 40);
+  for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(16000 * Math.sin((2 * Math.PI * 440 * i) / rate)), 44 + 2 * i);
+  return b;
+}
+
+/** A voice with a sample instrument is a problem until its WAV file is added; the file stays after a reload. */
+async function samples(page) {
+  const doc = JSON.stringify({ version: 0, name: "hum", instruments: { vowel: { wave: "triangle" }, motif: { sample: "hum.wav", root: 69, loop: true, sustain: 1 } } }, null, 2);
+  await page.click("#tab-source");
+  await page.fill("#doc", doc);
+  await page.waitForSelector(".validity.bad");
+  assert.match(await page.textContent("#problems"), /instruments\.motif\.sample/);
+  await page.setInputFiles("#sample-file", { name: "hum.wav", mimeType: "audio/wav", buffer: sineWAV() });
+  await page.waitForSelector(".validity.ok");
+  await page.click("#tab-visual");
+  await page.click('[data-instrument="motif"]');
+  await page.click('[data-audition="motif"]');
+  await page.waitForTimeout(600);
+  assert.ok(Number(await page.getAttribute("#meter-bar", "data-max-peak")) > 0.05, "the sample sounds");
+  await page.reload();
+  await page.waitForSelector("body[data-ready=true]", { timeout: 30000 });
+  assert.match(await page.textContent("#samples"), /hum\.wav/);
+  await page.waitForSelector(".validity.ok");
+  await page.click('#samples button');
+  await page.waitForSelector(".validity.bad");
+}
+
+/** The Language tab checks a language file and the preview speaks it. */
+async function language(page) {
+  await page.selectOption("#starter", "soft");
+  await page.waitForSelector(".validity.ok");
+  await page.click("#tab-language");
+  await page.fill("#lang", "{ broken");
+  await page.waitForFunction(() => document.getElementById("lang-state").textContent.includes("problem"));
+  await page.click("#lang-builtin");
+  await page.waitForFunction(() => document.getElementById("lang-state").textContent === "Valid");
+  await page.click("#lang-clear");
+  await page.waitForFunction(() => document.getElementById("lang-state").textContent === "Built-in");
+}
+
+/** Share link copies an address that opens the same document. */
+async function shareLink(page, context) {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.selectOption("#starter", "ghost");
+  await page.waitForSelector(".validity.ok");
+  const doc = await page.inputValue("#doc");
+  await page.click("#share");
+  await page.waitForSelector("#toast:not([hidden])");
+  const url = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(url, /#v=/);
+  const other = await context.newPage();
+  await other.goto(url);
+  await other.waitForSelector("body[data-ready=true]", { timeout: 30000 });
+  assert.equal(await other.inputValue("#doc"), doc);
+  assert.ok(!(await other.evaluate(() => location.hash)), "the link is cleared from the address");
+  await other.close();
 }
 
 /** The roll and waveform follow the document, Hear plays an instrument, WAV downloads the line. */

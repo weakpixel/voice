@@ -23,7 +23,7 @@ const (
 // (notes start at the block after they are due). It returns the two
 // channels and the timeline.
 func RenderLine(v *voice.Voice, lang *voice.Language, text string, o Options, rate int) (left, right []float32, tl voice.Timeline, err error) {
-	r, err := NewLineRender(v, lang, text, o, rate)
+	r, err := NewLineRender(v, lang, text, o, rate, nil)
 	if err != nil {
 		return nil, nil, tl, err
 	}
@@ -44,8 +44,9 @@ type LineRender struct {
 	done        bool
 }
 
-// NewLineRender prepares the render of a line; Step renders it.
-func NewLineRender(v *voice.Voice, lang *voice.Language, text string, o Options, rate int) (*LineRender, error) {
+// NewLineRender prepares the render of a line; Step renders it. load
+// resolves sample instruments (nil if the voice has none).
+func NewLineRender(v *voice.Voice, lang *voice.Language, text string, o Options, rate int, load synth.SampleLoader) (*LineRender, error) {
 	if v == nil {
 		return nil, errors.New("session: no voice")
 	}
@@ -53,7 +54,7 @@ func NewLineRender(v *voice.Voice, lang *voice.Language, text string, o Options,
 	if err != nil {
 		return nil, err
 	}
-	if err := st.SetVoice(owner, v, nil); err != nil {
+	if err := st.SetVoice(owner, v, load); err != nil {
 		return nil, err
 	}
 	if lang == nil {

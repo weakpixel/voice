@@ -26,6 +26,8 @@
     <button id="download" type="button" title="Download the voice as a .voice.json file">
       <span class="icon" style="--icon: url(icons/download.svg)"></span>Download
     </button>
+    <button id="save" type="button" title="Save back to the opened file (Ctrl+S)" hidden>Save</button>
+    <button id="share" type="button" title="Copy a link that opens this voice in the editor">Share link</button>
     <button id="undo" type="button" title="Undo (Ctrl+Z)" disabled>Undo</button>
     <button id="redo" type="button" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
     <button id="copy" type="button" title="Copy the voice JSON to the clipboard">
@@ -40,11 +42,24 @@
         <div class="tabs" role="tablist" aria-label="View">
           <button id="tab-visual" type="button" role="tab" class="tab" data-view="visual">Visual</button>
           <button id="tab-source" type="button" role="tab" class="tab" data-view="source">Source</button>
+          <button id="tab-language" type="button" role="tab" class="tab" data-view="language" title="The made-up language the preview speaks: which letters are which sounds, and how punctuation pauses">Language</button>
         </div>
         <span id="validity" class="validity"></span>
       </div>
       <div id="visual" class="visual" role="tabpanel" aria-labelledby="tab-visual" hidden></div>
       <textarea id="doc" spellcheck="false" autocomplete="off" aria-label="Voice JSON" role="tabpanel" aria-labelledby="tab-source"></textarea>
+      <div id="language" class="language" role="tabpanel" aria-labelledby="tab-language" hidden>
+        <p class="hint">The preview speaks the built-in language while this is empty. Paste or open a <code>*.lang.json</code> file to hear the voice in your own language; the format is in the guide. It is kept apart from the voice file.</p>
+        <div class="add-row">
+          <button id="lang-open" type="button" class="small"><span class="icon" style="--icon: url(icons/upload.svg)"></span>Open language file…</button>
+          <button id="lang-builtin" type="button" class="small" title="Fill in the built-in language to change it">Start from the built-in language</button>
+          <button id="lang-clear" type="button" class="small" title="Speak the built-in language again">Use the built-in language</button>
+          <span id="lang-state" class="validity"></span>
+        </div>
+        <textarea id="lang" spellcheck="false" autocomplete="off" aria-label="Language JSON" placeholder="Built-in language"></textarea>
+        <ul id="lang-problems" class="problems"></ul>
+        <input id="lang-file" type="file" accept=".json,application/json" hidden>
+      </div>
     </section>
 
     <section class="panel preview" aria-label="Preview">
@@ -63,6 +78,12 @@
           <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
         </label>
       </div>
+      <div id="rhythm-options" class="rhythm-options" hidden>
+        <label class="check" title="Leave out the voice's drums, as when the game's music already plays the beat"><input id="mute-beat" type="checkbox"> Mute the beat</label>
+        <label class="check" title="Time the line to music playing at this tempo, as a game does with its music clock: the voice comes in on the music's next bar"><input id="clock" type="checkbox"> Music at</label>
+        <input id="clock-bpm" type="number" min="40" max="240" step="1" value="100" aria-label="Music tempo in beats per minute"> bpm,
+        <label title="Seconds until the music's next bar when the line starts">next bar in <input id="clock-phase" type="number" min="0" max="10" step="0.05" value="0.5" aria-label="Seconds until the next bar"> s</label>
+      </div>
       <div class="typewriter" id="typewriter" aria-live="polite"><span id="shown"></span><span id="hidden" class="hidden-text"></span></div>
       <div class="lanes">
         <canvas id="roll" title="The line's notes: one row per semitone, coloured by instrument; drums in the band at the bottom; ticks at the top where the text moves on"></canvas>
@@ -75,9 +96,15 @@
       <div class="status-line"><span id="time">0.00 s</span> <span id="events"></span></div>
       <h3>Problems</h3>
       <ul id="problems" class="problems"><li class="none">None</li></ul>
+      <h3>Sample files</h3>
+      <p class="hint">WAV files (16-bit PCM) that sample instruments use, by file name. Drop them on the page or add them here; the browser keeps them.</p>
+      <ul id="samples" class="samples"><li class="none">None</li></ul>
+      <button id="add-sample" type="button" class="small"><span class="icon" style="--icon: url(icons/upload.svg)"></span>Add WAV files…</button>
+      <input id="sample-file" type="file" accept=".wav,audio/wav,audio/x-wav" multiple hidden>
+      <datalist id="sample-names"></datalist>
     </section>
   </main>
-  <div id="drop" class="drop" hidden>Drop a .voice.json file to open it</div>
+  <div id="drop" class="drop" hidden>Drop a .voice.json file to open it, or WAV files to add samples</div>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>
 </html>

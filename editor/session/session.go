@@ -58,6 +58,8 @@ type Session struct {
 	speed float64
 	t     time.Duration
 	aud   audition
+
+	samples samples
 }
 
 // New returns a session whose stream runs at rate (float32 stereo).
@@ -80,13 +82,14 @@ func (s *Session) SampleRate() int { return s.stream.SampleRate() }
 
 // SetVoice makes v the voice of the next lines and sets its instruments on
 // the stream at once: notes already sounding keep their sound, the next ones
-// use the new one. On error (for example a sample instrument without a
-// loaded sample) nothing changes.
+// use the new one. Sample instruments use the samples added with
+// AddSample. On error (for example a sample that was not added) nothing
+// changes.
 func (s *Session) SetVoice(v *voice.Voice) error {
 	if v == nil {
 		return errors.New("session: no voice")
 	}
-	if err := s.stream.SetVoice(owner, v, nil); err != nil {
+	if err := s.stream.SetVoice(owner, v, s.load); err != nil {
 		return err
 	}
 	s.v = v
