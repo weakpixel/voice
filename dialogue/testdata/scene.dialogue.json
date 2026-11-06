@@ -1,0 +1,16 @@
+{
+  "version": 0,
+  "name": "scene",
+  "advance": "input",
+  "hold": 0.5,
+  "speakers": [
+    { "id": "wren", "name": "Wren", "voice": "chirpy", "pan": -0.3 },
+    { "id": "bram", "name": "Bram", "voice": "gruff", "pan": 0.3 }
+  ],
+  "lines": [
+    { "speaker": "wren", "text": "Hello there, traveler!" },
+    { "speaker": "bram", "text": "Lost? No. Just turned around.", "delay": 0.4, "speed": 1.5 },
+    { "speaker": "wren", "text": "Then follow me!", "advance": "auto", "hold": 0.25 },
+    { "speaker": "bram", "text": "Fine.", "instant": true }
+  ]
+}
