@@ -51,6 +51,7 @@ editor:
 	rm -rf build/editor
 	cd editor && go run ./cmd/mksite -out ../build/editor -version $(VERSION)
 	cd editor && GOOS=js GOARCH=wasm go build -trimpath -ldflags=-s -o ../build/editor/voice.wasm ./wasm
+	cd editor && GOOS=js GOARCH=wasm go build -trimpath -ldflags=-s -o ../build/editor/game.wasm ./game
 
 # Unit tests of the editor page's scripts (Node, no packages).
 .PHONY: editor-test

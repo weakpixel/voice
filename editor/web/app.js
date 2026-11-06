@@ -10,6 +10,7 @@ import { installTooltips } from "./tooltip.js";
 import { PianoRoll } from "./pianoroll.js";
 import { saveSample, deleteSample, storedSamples } from "./samples.js";
 import { encodeShare, decodeShare } from "./share.js";
+import { initDialogue } from "./dialogue.js";
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const docArea = /** @type {HTMLTextAreaElement} */ ($("doc"));
@@ -830,6 +831,7 @@ async function main() {
   committedDoc = parsed();
   setView(draft?.view || "visual");
   setTransport();
+  initDialogue({ stopPreview: () => api?.stop(), toast });
   document.body.dataset.ready = "true";
 }
 

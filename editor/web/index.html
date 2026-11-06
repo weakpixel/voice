@@ -9,34 +9,38 @@
   <script src="wasm_exec.js?v=__VERSION__"></script>
   <script type="module" src="app.js?v=__VERSION__"></script>
 </head>
-<body>
+<body data-mode="voice">
   <header class="bar">
     <h1>Voice Editor</h1>
-    <span id="doc-name" class="doc-name"></span>
+    <div class="tabs modes" role="tablist" aria-label="Mode">
+      <button id="mode-voice" type="button" role="tab" class="tab active">Voice</button>
+      <button id="mode-dialogue" type="button" role="tab" class="tab" title="Write a conversation of several speakers and watch it play in a small game">Dialogue</button>
+    </div>
+    <span id="doc-name" class="doc-name voice-only"></span>
     <div class="spacer"></div>
-    <label class="button" title="Start a new voice from a starter voice">
+    <label class="button voice-only" title="Start a new voice from a starter voice">
       <span class="icon" style="--icon: url(icons/plus.svg)"></span>
       <select id="starter" aria-label="New from starter">
         <option value="">New from starter…</option>
       </select>
     </label>
-    <button id="open" type="button" title="Open a .voice.json file (or drop one on the page)">
+    <button id="open" type="button" class="voice-only" title="Open a .voice.json file (or drop one on the page)">
       <span class="icon" style="--icon: url(icons/upload.svg)"></span>Open
     </button>
-    <button id="download" type="button" title="Download the voice as a .voice.json file">
+    <button id="download" type="button" class="voice-only" title="Download the voice as a .voice.json file">
       <span class="icon" style="--icon: url(icons/download.svg)"></span>Download
     </button>
-    <button id="save" type="button" title="Save back to the opened file (Ctrl+S)" hidden>Save</button>
-    <button id="share" type="button" title="Copy a link that opens this voice in the editor">Share link</button>
-    <button id="undo" type="button" title="Undo (Ctrl+Z)" disabled>Undo</button>
-    <button id="redo" type="button" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
-    <button id="copy" type="button" title="Copy the voice JSON to the clipboard">
+    <button id="save" type="button" class="voice-only" title="Save back to the opened file (Ctrl+S)" hidden>Save</button>
+    <button id="share" type="button" class="voice-only" title="Copy a link that opens this voice in the editor">Share link</button>
+    <button id="undo" type="button" class="voice-only" title="Undo (Ctrl+Z)" disabled>Undo</button>
+    <button id="redo" type="button" class="voice-only" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
+    <button id="copy" type="button" class="voice-only" title="Copy the voice JSON to the clipboard">
       <span class="icon" style="--icon: url(icons/copy.svg)"></span>Copy
     </button>
     <input id="file" type="file" accept=".json,application/json" hidden>
   </header>
 
-  <main class="layout">
+  <main class="layout" id="voice-mode">
     <section class="panel editor" aria-label="Voice file">
       <div class="panel-head">
         <div class="tabs" role="tablist" aria-label="View">
@@ -102,6 +106,48 @@
       <button id="add-sample" type="button" class="small"><span class="icon" style="--icon: url(icons/upload.svg)"></span>Add WAV files…</button>
       <input id="sample-file" type="file" accept=".wav,audio/wav,audio/x-wav" multiple hidden>
       <datalist id="sample-names"></datalist>
+    </section>
+  </main>
+
+  <main class="layout" id="dialogue-mode">
+    <section class="panel editor" aria-label="Dialogue file">
+      <div class="panel-head">
+        <div class="tabs" role="tablist" aria-label="View">
+          <button type="button" role="tab" class="tab active">Source</button>
+        </div>
+        <span id="dlg-validity" class="validity"></span>
+        <span id="dlg-name" class="doc-name"></span>
+      </div>
+      <div class="add-row">
+        <button id="dlg-example" type="button" class="small" title="Replace the text with the example dialogue">Start from the example</button>
+        <button id="dlg-open" type="button" class="small"><span class="icon" style="--icon: url(icons/upload.svg)"></span>Open…</button>
+        <button id="dlg-download" type="button" class="small"><span class="icon" style="--icon: url(icons/download.svg)"></span>Download</button>
+        <button id="dlg-copy" type="button" class="small"><span class="icon" style="--icon: url(icons/copy.svg)"></span>Copy</button>
+        <input id="dlg-file" type="file" accept=".json,application/json" hidden>
+      </div>
+      <textarea id="dlg-doc" spellcheck="false" autocomplete="off" aria-label="Dialogue JSON"></textarea>
+      <h3>Problems</h3>
+      <ul id="dlg-problems" class="problems"><li class="none">None</li></ul>
+      <p class="hint">Speakers use a starter voice by name. Voice files are not available in the Dialogue mode yet.</p>
+    </section>
+
+    <section class="panel preview" aria-label="Game">
+      <div class="panel-head"><h2>Game</h2><span id="dlg-audio" class="audio-state"></span></div>
+      <div id="dlg-stage" class="stage">
+        <iframe id="dlg-game" class="game" title="The dialogue, playing" allow="autoplay" width="480" height="270"></iframe>
+      </div>
+      <p id="dlg-note" class="hint">Loading the game (about 4 MB)…</p>
+      <div class="transport">
+        <button id="dlg-restart" type="button" class="primary"><span class="icon" style="--icon: url(icons/player-play.svg)"></span>Restart</button>
+        <button id="dlg-pause" type="button"><span class="icon" style="--icon: url(icons/player-pause.svg)"></span><span class="label">Pause</span></button>
+        <label class="check">from line <input id="dlg-from" type="number" min="1" step="1" value="1" aria-label="Line to play from"></label>
+        <button id="dlg-from-play" type="button" class="small">Play</button>
+        <label class="check" title="Go on after every line by itself instead of waiting for a click"><input id="dlg-auto" type="checkbox"> Auto-advance</label>
+        <label class="volume" title="Volume"><span class="icon" style="--icon: url(icons/volume.svg)"></span>
+          <input id="dlg-volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
+        </label>
+      </div>
+      <div class="status-line"><span id="dlg-status"></span></div>
     </section>
   </main>
   <div id="drop" class="drop" hidden>Drop a .voice.json file to open it, or WAV files to add samples</div>

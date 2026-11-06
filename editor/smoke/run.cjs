@@ -118,6 +118,8 @@ async function main() {
     console.log("ok language");
     await shareLink(page, context);
     console.log("ok share link");
+    await dialogueMode(page);
+    console.log("ok dialogue mode");
   } catch (e) {
     failures.push(e.stack || String(e));
   } finally {
@@ -129,6 +131,72 @@ async function main() {
     process.exit(1);
   }
   console.log("editor smoke test passed");
+}
+
+/**
+ * The Dialogue mode: the game loads in its iframe, plays the example, plays a
+ * short dialogue hands-free to its end (line messages in order), takes edits,
+ * shows problems at their paths, and starts its sound on a click inside it.
+ */
+async function dialogueMode(page) {
+  await page.evaluate(() => {
+    window.__game = [];
+    addEventListener("message", (e) => e.data && e.data.source === "voice-game" && window.__game.push(e.data));
+  });
+  await page.click("#mode-dialogue");
+  assert.equal(await page.getAttribute("body", "data-mode"), "dialogue");
+  assert.ok(!(await page.isVisible("#doc")), "the voice editor is hidden");
+  await page.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 60000 });
+  await page.waitForFunction(() => document.getElementById("dlg-status").textContent.startsWith("Line 1 of 9: Wren"), null, { timeout: 10000 });
+  assert.match(await page.inputValue("#dlg-doc"), /"name": "village"/);
+
+  // A short dialogue plays hands-free to its end, the lines in order.
+  const short = JSON.stringify({
+    version: 0, hold: 0.2,
+    speakers: [{ id: "a", name: "Ann", voice: "soft" }, { id: "b", name: "Bo", voice: "chirpy" }],
+    lines: [{ speaker: "a", text: "Hi." }, { speaker: "b", text: "Hello!" }, { speaker: "a", text: "Bye." }],
+  }, null, 2);
+  await page.check("#dlg-auto");
+  await page.evaluate(() => (window.__game.length = 0));
+  await page.fill("#dlg-doc", short);
+  await page.waitForFunction(() => window.__game.some((m) => m.type === "finished"), null, { timeout: 60000 });
+  const lines = await page.evaluate(() => window.__game.filter((m) => m.type === "line").map((m) => m.index));
+  assert.deepEqual(lines.slice(-3), [0, 1, 2], "line messages in order");
+  assert.match(await page.textContent("#dlg-status"), /finished/);
+
+  // An edit reaches the game: the new text's problems show with their paths.
+  await page.fill("#dlg-doc", short.replace('"speaker": "b"', '"speaker": "zed"'));
+  await page.waitForFunction(() => document.getElementById("dlg-problems").textContent.includes("lines[1].speaker"), null, { timeout: 10000 });
+  assert.equal(await page.textContent("#dlg-validity"), "1 problem");
+  // A voice file the page does not have is a problem at its speaker.
+  await page.fill("#dlg-doc", short.replace('"voice": "soft"', '"voice": "bram.voice.json"'));
+  await page.waitForFunction(() => document.getElementById("dlg-problems").textContent.includes("speakers[0].voice"), null, { timeout: 10000 });
+  // A fixed document is valid again and the game plays it.
+  await page.fill("#dlg-doc", short);
+  await page.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 10000 });
+
+  // Pause and resume, play from a line.
+  await page.uncheck("#dlg-auto");
+  await page.click("#dlg-pause");
+  assert.equal((await page.textContent("#dlg-pause")).trim(), "Resume");
+  await page.click("#dlg-pause");
+  await page.fill("#dlg-from", "2");
+  await page.click("#dlg-from-play");
+  await page.waitForFunction(() => document.getElementById("dlg-status").textContent.startsWith("Line 2 of 3: Bo"), null, { timeout: 10000 });
+
+  // Sound starts with the first click inside the game (not before).
+  await page.frameLocator("#dlg-game").locator("body").click({ position: { x: 100, y: 100 } });
+  await page.waitForFunction(() => document.getElementById("dlg-audio").textContent === "Sound is on", null, { timeout: 10000 });
+  assert.ok(await page.evaluate(() => window.__game.some((m) => m.type === "audio" && m.running)));
+
+  // The mode and the document survive a reload; back to the voice editor.
+  await page.reload();
+  await page.waitForSelector("body[data-ready=true]");
+  assert.equal(await page.getAttribute("body", "data-mode"), "dialogue");
+  assert.equal(await page.inputValue("#dlg-doc"), short);
+  await page.click("#mode-voice");
+  assert.equal(await page.getAttribute("body", "data-mode"), "voice");
+  assert.ok(await page.isVisible("#voice-mode"), "the voice editor is back");
 }
 
 /** How many notes the piano roll shows. */

@@ -15,7 +15,7 @@ import (
 func TestBuild(t *testing.T) {
 	out := t.TempDir()
 	exec := filepath.Join(runtime.GOROOT(), "lib", "wasm", "wasm_exec.js")
-	if err := build(out, "../../web", "../../../presets", "v123", exec); err != nil {
+	if err := build(out, "../../web", "../../../presets", "../../../ebiten/example", "v123", exec); err != nil {
 		t.Fatal(err)
 	}
 	html, err := os.ReadFile(filepath.Join(out, "index.html"))
