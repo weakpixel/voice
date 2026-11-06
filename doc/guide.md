@@ -103,10 +103,15 @@ A nested module, so only programs that use it depend on Ebiten. `voiceebiten.New
 
 Until the root module has a version tag, the nested module finds it through a `replace` to `..`: use it from a checkout of this repository (or a `go.work`).
 
-The example, a dialogue box with three characters (one speaks in rhythm with `verse`):
+### The dialogue box (`ebiten/dialoguebox`)
+
+`dialoguebox.New(stream, opts)` returns an `ebiten.Game` that shows a [dialogue](#dialogues-dialoguejson-package-dialogue): a box at the bottom with the speaker's name and the text typing out in the speaker's voice. `SetScript(script, voices, start)` swaps the dialogue while the game runs (it closes the old player, sets the speakers' voices on the stream and plays line `start`; on an error the old dialogue stays). Space, Enter or a click skips the typing or goes on; after the last line a click starts again. `Options.AutoAdvance` plays hands-free and `Options.Languages` resolves voice languages. The box makes no audio context: the caller plays the stream (with `voiceebiten.NewPlayer`). `Step(dt)` advances the dialogue without input, for tests.
+
+The example is a short `main` around the box. It plays the embedded `ebiten/example/village.dialogue.json` (three characters, one speaks in rhythm with `verse`), or any dialogue file you name; voice files it uses are read from that file's folder:
 
 ```bash
-cd ebiten && go run ./example                     # Space or click: skip, then next line
+cd ebiten && go run ./example                       # Space or click: skip, then next line
+cd ebiten && go run ./example path/to/x.dialogue.json
 ```
 
 ## Tests (package `voicetest`)
