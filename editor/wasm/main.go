@@ -43,6 +43,9 @@ func main() {
 		"say":          js.FuncOf(b.say),
 		"update":       js.FuncOf(b.update),
 		"audition":     js.FuncOf(b.audition),
+		"addSample":    js.FuncOf(b.addSample),
+		"removeSample": js.FuncOf(func(_ js.Value, a []js.Value) any { s.RemoveSample(a[0].String()); return nil }),
+		"samples":      js.FuncOf(func(js.Value, []js.Value) any { return toJS(s.Samples()) }),
 		"renderStart":  js.FuncOf(b.renderStart),
 		"renderStep":   js.FuncOf(b.renderStep),
 		"wav":          js.FuncOf(b.wav),
@@ -85,6 +88,9 @@ func (b *bridge) loadVoice(_ js.Value, a []js.Value) any {
 		Problems []session.Problem `json:"problems"`
 	}
 	v, problems := session.LoadVoice(a[0].String())
+	if missing := b.s.MissingSamples(a[0].String()); v != nil && len(missing) > 0 {
+		v, problems = nil, missing
+	}
 	if v != nil {
 		if err := b.s.SetVoice(v); err != nil {
 			v, problems = nil, []session.Problem{{Message: err.Error()}}
@@ -128,6 +134,18 @@ func options(a []js.Value) session.Options {
 		opts.Clock = &voice.Clock{BPM: o.BPM, Phase: time.Duration(o.Phase * float64(time.Second))}
 	}
 	return opts
+}
+
+// addSample(name, bytes) adds a 16-bit PCM WAV file (a Uint8Array) as the
+// sample called name. Returns "" or why it cannot. Load the voice again
+// afterwards so its instruments use it.
+func (b *bridge) addSample(_ js.Value, a []js.Value) any {
+	data := make([]byte, a[1].Get("length").Int())
+	js.CopyBytesToGo(data, a[1])
+	if err := b.s.AddSample(a[0].String(), data); err != nil {
+		return err.Error()
+	}
+	return ""
 }
 
 // audition(name) plays a short phrase on one instrument or percussion

@@ -104,6 +104,8 @@ The Voice Editor ([editor.md](editor.md)) is a nested module so the core stays f
 
 **The picture is rendered offline.** The piano roll and the waveform come from a second render of the line on its own stream (`session.LineRender`, the same Speaker driven block by block, plus the tail until the reverb is quiet), which is also what the WAV download writes. That render costs about a second for a long `divine` line in a browser, so the page runs it in slices between animation frames (10 ms per frame, 3 ms while a line plays) instead of blocking; a newer edit replaces a render in progress. Measured: a 70-character `divine` line renders in about 1.6 s of wall time with no task over 50 ms. Auditions (Hear) play a fixed phrase, the one `voiceplay -patches` plays, on the live stream, advanced by the same frame loop as a line.
 
+**What the page keeps.** Sample files live in the browser's IndexedDB by file name (the name a voice file uses), decoded into the session when the page starts; the voice document, the language text and the settings live in local storage. A share link carries the document itself, deflated (`CompressionStream("deflate-raw")`) and base64url-encoded after `#v=`, so no server is involved and the fragment never reaches GitHub Pages; a starter voice gives a fragment of 400 to 600 characters.
+
 Measured in headless Chromium (2026-11-05, same container as below), a 107-character line keeps the page's main thread busy 12 % of the time with `soft` and 15 % with `divine` (about 2 % with the page idle and the stream silent), with no task over 50 ms. The site is 5.1 MB, the wasm 1.4 MB gzipped.
 
 ## Not built yet
