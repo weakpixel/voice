@@ -1,157 +1,68 @@
-// Command example is a dialogue box with three speakers: each line is spoken
-// in its character's voice while the text types out, and the third speaks
-// in rhythm (the verse voice). Space (or a click) skips to the end of a
-// line, or goes on to the next one.
+// Command example plays a dialogue in an Ebiten window: each line is spoken
+// in its character's voice while the text types out. Space, Enter or a click
+// skips to the end of a line, or goes on to the next one.
 //
-//	go run ./example            (from the ebiten module)
+// Without arguments it plays the embedded village.dialogue.json. With a file
+// it plays that dialogue; voice files it names are read from the file's
+// folder.
+//
+//	go run ./example [file.dialogue.json]     (from the ebiten module)
 package main
 
 import (
-	"fmt"
-	"image/color"
+	"embed"
+	"io/fs"
 	"log"
-	"strings"
-	"time"
+	"os"
+	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/weakpixel/voice"
+	"github.com/weakpixel/voice/dialogue"
 	voiceebiten "github.com/weakpixel/voice/ebiten"
+	"github.com/weakpixel/voice/ebiten/dialoguebox"
 	"github.com/weakpixel/voice/synth"
 )
 
-const (
-	sampleRate   = 48000
-	screenWidth  = 480
-	screenHeight = 270
-)
+const sampleRate = 48000
 
-type character struct {
-	name    string
-	voice   *voice.Voice
-	speaker *voice.Speaker
-}
-
-type line struct {
-	who  int
-	text string
-}
-
-var script = []line{
-	{0, "Hello there, traveler! Are you lost?"},
-	{1, "Lost? No. Just... a little turned around."},
-	{0, "The village is past the old mill. Follow the river and you can't miss it!"},
-	{1, "Thank you. Is it far?"},
-	{0, "Not at all. An hour, maybe two."},
-	{1, "Then I had better hurry."},
-	{2, "Hold up, traveler, hear me out. The mill is old, but the road is long, and the river sings a different song."},
-	{1, "...Who are you?"},
-	{2, "Just a bard on a bridge, with a beat in my head. Follow the water, like I said!"},
-}
-
-type game struct {
-	people []*character
-	line   int
-	player *voiceebiten.Player
-}
-
-func newGame() (*game, error) {
-	stream, err := synth.NewStream(synth.StreamConfig{SampleRate: sampleRate})
-	if err != nil {
-		return nil, err
-	}
-	g := &game{}
-	names := []string{"Wren", "Bram", "Kip"}
-	for i, name := range []string{"chirpy", "gruff", "verse"} {
-		v, err := voice.Preset(name)
-		if err != nil {
-			return nil, err
-		}
-		v.Pan = []float32{-0.3, 0.3, 0}[i] // a little apart in stereo
-		owner := voice.Owner(i + 1)
-		if err := stream.SetVoice(owner, v, nil); err != nil {
-			return nil, err
-		}
-		g.people = append(g.people, &character{name: names[i], voice: v, speaker: voice.NewSpeaker(stream, owner)})
-	}
-	if g.player, err = voiceebiten.NewPlayer(audio.NewContext(sampleRate), stream, 0); err != nil {
-		return nil, err
-	}
-	g.say()
-	return g, nil
-}
-
-func (g *game) current() *character { return g.people[script[g.line].who] }
-
-func (g *game) say() {
-	g.current().speaker.Say(g.current().voice, script[g.line].text, voice.SayOptions{})
-}
-
-func (g *game) Update() error {
-	sp := g.current().speaker
-	if inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		if !sp.Done() {
-			sp.Skip()
-		} else {
-			g.line = (g.line + 1) % len(script)
-			g.say()
-		}
-	}
-	dt := time.Second / time.Duration(ebiten.TPS())
-	for _, c := range g.people {
-		c.speaker.Update(dt)
-	}
-	return nil
-}
-
-func (g *game) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{0x1a, 0x1c, 0x2c, 0xff})
-	vector.FillRect(screen, 16, 150, screenWidth-32, 104, color.RGBA{0x33, 0x3c, 0x57, 0xff}, false)
-	c := g.current()
-	text := script[g.line].text[:c.speaker.Revealed()]
-	ebitenutil.DebugPrintAt(screen, c.name+":", 28, 160)
-	ebitenutil.DebugPrintAt(screen, wrap(text, 70), 28, 180)
-	hint := "Space: skip"
-	if c.speaker.Done() {
-		hint = "Space: next"
-	}
-	ebitenutil.DebugPrintAt(screen, hint, screenWidth-110, 236)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("voice: %s", c.voice.Name), 16, 8)
-}
-
-// wrap breaks text into lines of at most width bytes at spaces.
-func wrap(text string, width int) string {
-	var b strings.Builder
-	n := 0
-	for i, w := range strings.Split(text, " ") {
-		if i > 0 {
-			if n+1+len(w) > width {
-				b.WriteByte('\n')
-				n = 0
-			} else {
-				b.WriteByte(' ')
-				n++
-			}
-		}
-		b.WriteString(w)
-		n += len(w)
-	}
-	return b.String()
-}
-
-func (g *game) Layout(int, int) (int, int) { return screenWidth, screenHeight }
+//go:embed village.dialogue.json
+var village embed.FS
 
 func main() {
-	g, err := newGame()
+	var fsys fs.FS = village
+	name := "village.dialogue.json"
+	if len(os.Args) > 1 {
+		dir, file := filepath.Split(os.Args[1])
+		if dir == "" {
+			dir = "."
+		}
+		fsys, name = os.DirFS(dir), file
+	}
+	script, err := dialogue.LoadFS(fsys, name)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ebiten.SetWindowSize(screenWidth*2, screenHeight*2)
+	voices, err := dialogue.LoadVoices(fsys, script)
+	if err != nil {
+		log.Fatal(err)
+	}
+	stream, err := synth.NewStream(synth.StreamConfig{SampleRate: sampleRate})
+	if err != nil {
+		log.Fatal(err)
+	}
+	box := dialoguebox.New(stream, dialoguebox.Options{})
+	if err := box.SetScript(script, voices, 0); err != nil {
+		log.Fatal(err)
+	}
+	player, err := voiceebiten.NewPlayer(audio.NewContext(sampleRate), stream, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer player.Close()
+	ebiten.SetWindowSize(dialoguebox.ScreenWidth*2, dialoguebox.ScreenHeight*2)
 	ebiten.SetWindowTitle("voice: dialogue example")
-	if err := ebiten.RunGame(g); err != nil {
+	if err := ebiten.RunGame(box); err != nil {
 		log.Fatal(err)
 	}
 }
