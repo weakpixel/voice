@@ -10,6 +10,8 @@ import { installTooltips } from "./tooltip.js";
 import { PianoRoll } from "./pianoroll.js";
 import { saveSample, deleteSample, storedSamples } from "./samples.js";
 import { encodeShare, decodeShare } from "./share.js";
+import { initDialogue } from "./dialogue.js";
+import { initTheme } from "./theme.js";
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const docArea = /** @type {HTMLTextAreaElement} */ ($("doc"));
@@ -830,6 +832,8 @@ async function main() {
   committedDoc = parsed();
   setView(draft?.view || "visual");
   setTransport();
+  initTheme($("theme"), () => roll.draw());
+  initDialogue({ stopPreview: () => api?.stop(), toast });
   document.body.dataset.ready = "true";
 }
 

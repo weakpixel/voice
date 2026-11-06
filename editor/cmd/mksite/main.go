@@ -1,8 +1,9 @@
 // Command mksite assembles the Voice Editor's static site: the page from
 // editor/web, the starter voices and the default language from the
 // repository's presets (with presets/index.json listing the starters in
-// voice.PresetNames order), and wasm_exec.js from the Go installation. It
-// stamps the version into index.html for cache busting. voice.wasm is built
+// voice.PresetNames order), the example's village.dialogue.json, and
+// wasm_exec.js from the Go installation. It
+// stamps the version into index.html for cache busting. voice.wasm and game.wasm are built
 // separately (make editor).
 //
 //	go run ./cmd/mksite -out ../build/editor -version abc1234
@@ -27,16 +28,17 @@ func main() {
 	out := flag.String("out", "../build/editor", "output directory")
 	web := flag.String("web", "web", "the page's source directory")
 	presets := flag.String("presets", "../presets", "the repository's presets directory")
+	example := flag.String("example", "../ebiten/example", "the Ebiten example's directory")
 	version := flag.String("version", "dev", "version stamped into index.html")
 	flag.Parse()
-	if err := build(*out, *web, *presets, *version, filepath.Join(runtime.GOROOT(), "lib", "wasm", "wasm_exec.js")); err != nil {
+	if err := build(*out, *web, *presets, *example, *version, filepath.Join(runtime.GOROOT(), "lib", "wasm", "wasm_exec.js")); err != nil {
 		fmt.Fprintln(os.Stderr, "mksite:", err)
 		os.Exit(1)
 	}
 }
 
 // build writes the site into out (voice.wasm aside).
-func build(out, web, presets, version, wasmExec string) error {
+func build(out, web, presets, example, version, wasmExec string) error {
 	if err := copyTree(web, out, func(rel string) bool {
 		return !strings.HasPrefix(rel, "test"+string(filepath.Separator)) && rel != "test"
 	}); err != nil {
@@ -62,6 +64,8 @@ func build(out, web, presets, version, wasmExec string) error {
 	names, _ := json.Marshal(voice.PresetNames())
 	errs = append(errs, os.WriteFile(filepath.Join(dst, "index.json"), append(names, '\n'), 0o644))
 	errs = append(errs, copyFile(wasmExec, filepath.Join(out, "wasm_exec.js")))
+	// The sample dialogue the Dialogue mode starts with is the example's.
+	errs = append(errs, copyFile(filepath.Join(example, "village.dialogue.json"), filepath.Join(out, "village.dialogue.json")))
 	return errors.Join(errs...)
 }
 

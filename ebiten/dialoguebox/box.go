@@ -38,6 +38,9 @@ type Options struct {
 	Languages func(name string) *voice.Language
 	// AutoAdvance plays hands-free, see [dialogue.Options].AutoAdvance.
 	AutoAdvance bool
+	// Samples loads the sample files that voices name; nil means none, and a
+	// voice with a sample instrument is then rejected by SetScript.
+	Samples synth.SampleLoader
 }
 
 // Box is an ebiten.Game around a dialogue player. Use it from Ebiten's
@@ -68,7 +71,7 @@ func (b *Box) SetScript(s *dialogue.Script, voices map[string]*voice.Voice, star
 		return err
 	}
 	for _, sv := range p.Voices() {
-		if err := b.stream.SetVoice(sv.Owner, sv.Voice, nil); err != nil {
+		if err := b.stream.SetVoice(sv.Owner, sv.Voice, b.opts.Samples); err != nil {
 			p.Close()
 			return fmt.Errorf("dialoguebox: voice of %s: %w", sv.Speaker, err)
 		}
@@ -82,6 +85,15 @@ func (b *Box) SetScript(s *dialogue.Script, voices map[string]*voice.Voice, star
 
 // SetAutoAdvance changes hands-free play for the next SetScript.
 func (b *Box) SetAutoAdvance(on bool) { b.opts.AutoAdvance = on }
+
+// SetLanguages changes the language resolver for the next SetScript.
+func (b *Box) SetLanguages(f func(name string) *voice.Language) { b.opts.Languages = f }
+
+// SetSamples changes the sample loader for the next SetScript.
+func (b *Box) SetSamples(l synth.SampleLoader) { b.opts.Samples = l }
+
+// Script is the current script, nil before SetScript.
+func (b *Box) Script() *dialogue.Script { return b.script }
 
 // Player is the current player, nil before SetScript.
 func (b *Box) Player() *dialogue.Player { return b.player }

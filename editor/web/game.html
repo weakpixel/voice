@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dialogue game</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #1a1c2c; overflow: hidden; }
+    #note { position: fixed; top: 0; left: 0; right: 0; padding: 4px 8px; color: #c9cfe6;
+      background: rgba(26, 28, 44, 0.85); font: 13px/1.4 system-ui, sans-serif; text-align: center;
+      pointer-events: none; }
+    #note[hidden] { display: none; }
+  </style>
+  <script src="wasm_exec.js"></script>
+</head>
+<body>
+  <div id="note">Loading the game…</div>
+  <script>
+    // The dialogue game's page. The parent page posts messages (see
+    // editor/game/main.go); Go's voiceGame object does the work, and Go calls
+    // voiceGameEvent for what happens in the game.
+    "use strict";
+    const note = document.getElementById("note");
+    const parentWindow = window.parent === window ? null : window.parent;
+    let ready = false;
+    let queue = [];
+    let audioRunning = false;
+
+    function toParent(msg) {
+      if (parentWindow) parentWindow.postMessage({ source: "voice-game", ...msg }, location.origin);
+    }
+    window.voiceGameEvent = (json) => {
+      const msg = JSON.parse(json);
+      if (msg.type === "ready") {
+        ready = true;
+        showAudioNote();
+        for (const m of queue.splice(0)) handle(m);
+      }
+      if (msg.type === "audio") {
+        audioRunning = msg.running;
+        showAudioNote();
+      }
+      toParent(msg);
+    };
+    // Ebiten starts audio on the first input inside its canvas; tell the user.
+    function showAudioNote() {
+      note.hidden = audioRunning || !ready;
+      note.textContent = "Click to start sound";
+    }
+
+    function handle(msg) {
+      const g = window.voiceGame;
+      switch (msg.type) {
+        case "load": g.load(JSON.stringify({
+          dialogue: msg.dialogue, voices: msg.voices || {}, language: msg.language || "",
+          start: msg.start || 0, autoAdvance: !!msg.autoAdvance }), msg.samples); break;
+        case "start": g.start(msg.line); break;
+        case "pause": g.pause(); break;
+        case "resume": g.resume(); break;
+        case "volume": g.volume(msg.value); break;
+      }
+    }
+    window.addEventListener("message", (e) => {
+      if (e.origin !== location.origin || !e.data || e.data.source !== "voice-editor") return;
+      if (ready) handle(e.data); else queue.push(e.data);
+    });
+    // A click in the parent page does not start the game's audio (measured in
+    // Chromium, with and without the autoplay flag): it starts on the first
+    // input inside the game, hence the note above.
+
+    (async () => {
+      try {
+        const go = new Go();
+        const result = await WebAssembly.instantiateStreaming(fetch("game.wasm" + location.search), go.importObject);
+        go.run(result.instance);
+      } catch (err) {
+        note.textContent = "The game could not start: " + err;
+        toParent({ type: "error", message: String(err) });
+      }
+    })();
+  </script>
+</body>
+</html>

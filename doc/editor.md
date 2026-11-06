@@ -18,16 +18,28 @@ A web page to edit `*.voice.json` files and hear them while you type. It runs en
 - For a voice with a rhythm, **Mute the beat** leaves out its drums (as when the game's music plays the beat), and **Music at** times the line to music at that tempo, coming in on the music's next bar, as a game does with `SayOptions.Clock`.
 - **Sample files**: an instrument with `"sample": "<file name>"` plays a recorded sound. Add the 16-bit PCM WAV files by dropping them on the page or with **Add WAV files**; the browser keeps them for the next visit (IndexedDB). A sample the page does not have is a problem at that instrument's `sample` field.
 - **Language** is the made-up language the preview speaks. Empty is the built-in one; paste or open a `*.lang.json` file, or start from the built-in language and change it. It has its own problem list and is kept with the draft, apart from the voice file.
+- **Theme** in the top bar cycles System, Light and Dark. System follows the browser's colour scheme; the other two override it, and the choice is kept in local storage. The game's own screen stays dark.
 - The page keeps the current document, the test line and the volume in the browser's local storage and restores them on the next visit.
+
+### Dialogue mode
+
+The **Voice** and **Dialogue** buttons in the top bar switch modes. The Dialogue mode edits a [`*.dialogue.json`](guide.md#dialogues-dialoguejson-package-dialogue) file as text (the Source tab; a form for speakers and lines comes later) and plays it in a small game: the same dialogue box as `ebiten/example`, running the library's `dialogue.Player`. The game is a second WebAssembly program (about 4 MB compressed) loaded in an iframe the first time the mode opens, so the Voice mode does not pay for it.
+
+- The text starts as the example dialogue. **Start from the example**, **Open…**, **Download** and **Copy** work on the dialogue as for voices. A speaker's `voice` is a starter voice name; voice files are not available in this mode yet, and naming one is a problem at `speakers[i].voice`.
+- The game loads every valid edit about 0.3 s after the last keystroke and continues on the line it was on. **Problems** lists what the library's loader finds, each with its JSON path, exactly as a Go program sees them.
+- **Restart** plays from the first line, **from line … Play** from the line you choose, **Pause** and **Resume** stop time (the sounding notes are released). **Auto-advance** goes on after every line by itself (`hold` seconds), without a click. Inside the game, a click or Space skips the typing or goes on.
+- The status line under the game names the line it is on and who says it.
+- Sound starts with the first click **inside the game**: a click on the page's buttons does not start it, because the game has its own audio context (measured in Chromium, with and without its autoplay flag). The game says so until it is running. Switching to the Voice mode pauses the game, and the Voice preview stops when the Dialogue mode opens, so only one sounds at a time.
+- The dialogue text, the mode, auto-advance and the volume are kept in local storage.
 
 
 ## Building and running locally
 
 ```bash
-make editor        # the site in build/editor (voice.wasm, wasm_exec.js from your Go, the page, the starter voices)
+make editor        # the site in build/editor (voice.wasm, game.wasm, wasm_exec.js from your Go, the page, the starter voices)
 make editor-serve  # builds and serves it on http://localhost:8000
 make editor-test   # node --test of the page's scripts
-make editor-smoke  # headless Chromium: every starter plays, problems, transport, open, download, draft, roll, Hear, WAV, beat grid, samples, language, share link
+make editor-smoke  # headless Chromium: every starter plays, problems, transport, open, download, draft, roll, Hear, WAV, beat grid, samples, language, share link, the Dialogue mode
 ```
 
 `make editor-smoke` needs Playwright with Chromium (`require('playwright')` must work, for example through `NODE_PATH`). The site is static and uses relative URLs, so any static file server works; it must serve `.wasm` as `application/wasm`.
