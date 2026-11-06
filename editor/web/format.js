@@ -122,3 +122,44 @@ function removeIn(doc, keys, parentPath) {
   if (empty && parentPath !== "instruments" && here !== "instruments") delete out[k];
   return out;
 }
+
+// ---- dialogue documents (*.dialogue.json) ----
+
+/** Key orders of the dialogue format; unknown keys follow, in their order. */
+const DIALOGUE_KEYS = {
+  top: ["version", "name", "advance", "hold", "speakers", "lines"],
+  speaker: ["id", "name", "voice", "pan"],
+  line: ["speaker", "text", "delay", "speed", "instant", "advance", "hold"],
+};
+
+function ordered(obj, order) {
+  const keys = Object.keys(obj);
+  return [...order.filter((k) => k in obj), ...keys.filter((k) => !order.includes(k))];
+}
+
+function inline(obj, order) {
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return JSON.stringify(obj);
+  const keys = ordered(obj, order);
+  return keys.length ? `{ ${keys.map((k) => `${JSON.stringify(k)}: ${JSON.stringify(obj[k])}`).join(", ")} }` : "{}";
+}
+
+/**
+ * Writes a dialogue document in the example's style: the top-level keys one
+ * per line in the format's order, every speaker and every line on a line of
+ * its own, with a final newline.
+ * @param {any} doc @returns {string}
+ */
+export function formatDialogue(doc) {
+  const keys = ordered(doc, DIALOGUE_KEYS.top);
+  const body = keys.map((k) => {
+    const v = doc[k];
+    if (k === "speakers" || k === "lines") {
+      if (!Array.isArray(v)) return `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`;
+      const order = k === "speakers" ? DIALOGUE_KEYS.speaker : DIALOGUE_KEYS.line;
+      if (v.length === 0) return `  ${JSON.stringify(k)}: []`;
+      return `  ${JSON.stringify(k)}: [\n${v.map((x) => `    ${inline(x, order)}`).join(",\n")}\n  ]`;
+    }
+    return `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`;
+  });
+  return `{\n${body.join(",\n")}\n}\n`;
+}

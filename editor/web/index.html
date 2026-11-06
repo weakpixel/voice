@@ -21,6 +21,7 @@
       <button id="mode-dialogue" type="button" role="tab" class="tab" title="Write a conversation of several speakers and watch it play in a small game">Dialogue</button>
     </div>
     <span id="doc-name" class="doc-name voice-only"></span>
+    <label class="voice-only" title="The voice files of the workspace: pick one to edit it">Voice file <select id="voice-file" aria-label="Voice file"></select></label>
     <div class="spacer"></div>
     <label class="button voice-only" title="Start a new voice from a starter voice">
       <span class="icon" style="--icon: url(icons/plus.svg)"></span>
@@ -118,22 +119,29 @@
     <section class="panel editor" aria-label="Dialogue file">
       <div class="panel-head">
         <div class="tabs" role="tablist" aria-label="View">
-          <button type="button" role="tab" class="tab active">Source</button>
+          <button id="dlg-tab-script" type="button" role="tab" class="tab active">Script</button>
+          <button id="dlg-tab-source" type="button" role="tab" class="tab">Source</button>
         </div>
         <span id="dlg-validity" class="validity"></span>
         <span id="dlg-name" class="doc-name"></span>
       </div>
       <div class="add-row">
-        <button id="dlg-example" type="button" class="small" title="Replace the text with the example dialogue">Start from the example</button>
-        <button id="dlg-open" type="button" class="small"><span class="icon" style="--icon: url(icons/upload.svg)"></span>Open…</button>
-        <button id="dlg-download" type="button" class="small"><span class="icon" style="--icon: url(icons/download.svg)"></span>Download</button>
+        <button id="dlg-example" type="button" class="small" title="Replace the dialogue with the example">Start from the example</button>
+        <button id="dlg-open" type="button" class="small" title="Open a .dialogue.json file (or drop one on the page)"><span class="icon" style="--icon: url(icons/upload.svg)"></span>Open…</button>
+        <button id="dlg-download" type="button" class="small" title="Download the dialogue as a .dialogue.json file"><span class="icon" style="--icon: url(icons/download.svg)"></span>Download</button>
+        <button id="dlg-download-all" type="button" class="small" title="Download the dialogue and the voice files it uses, one file each">Download all</button>
+        <button id="dlg-share" type="button" class="small" title="Copy a link that opens this dialogue and its voice files in the editor">Share link</button>
         <button id="dlg-copy" type="button" class="small"><span class="icon" style="--icon: url(icons/copy.svg)"></span>Copy</button>
+        <button id="dlg-undo" type="button" class="small" title="Undo (Ctrl+Z)" disabled>Undo</button>
+        <button id="dlg-redo" type="button" class="small" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button>
         <input id="dlg-file" type="file" accept=".json,application/json" hidden>
+        <input id="dlg-voice-files" type="file" accept=".json,application/json" multiple hidden>
       </div>
-      <textarea id="dlg-doc" spellcheck="false" autocomplete="off" aria-label="Dialogue JSON"></textarea>
+      <div id="dlg-script" class="script"></div>
+      <textarea id="dlg-doc" spellcheck="false" autocomplete="off" aria-label="Dialogue JSON" hidden></textarea>
       <h3>Problems</h3>
       <ul id="dlg-problems" class="problems"><li class="none">None</li></ul>
-      <p class="hint">Speakers use a starter voice by name. Voice files are not available in the Dialogue mode yet.</p>
+      <p class="hint">A speaker's voice is a starter voice or a voice file in the workspace: files you open or drop are kept in the browser, and the Voice mode edits them.</p>
     </section>
 
     <section class="panel preview" aria-label="Game">
@@ -148,6 +156,7 @@
         <label class="check">from line <input id="dlg-from" type="number" min="1" step="1" value="1" aria-label="Line to play from"></label>
         <button id="dlg-from-play" type="button" class="small">Play</button>
         <label class="check" title="Go on after every line by itself instead of waiting for a click"><input id="dlg-auto" type="checkbox"> Auto-advance</label>
+        <label class="check" title="Send every valid edit to the game as you type, which restarts the line it is on; off, edits wait until you press Restart"><input id="dlg-live" type="checkbox" checked> Apply edits live</label>
         <label class="volume" title="Volume"><span class="icon" style="--icon: url(icons/volume.svg)"></span>
           <input id="dlg-volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
         </label>

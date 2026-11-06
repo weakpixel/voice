@@ -23,15 +23,16 @@ A web page to edit `*.voice.json` files and hear them while you type. It runs en
 
 ### Dialogue mode
 
-The **Voice** and **Dialogue** buttons in the top bar switch modes. The Dialogue mode edits a [`*.dialogue.json`](guide.md#dialogues-dialoguejson-package-dialogue) file as text (the Source tab; a form for speakers and lines comes later) and plays it in a small game: the same dialogue box as `ebiten/example`, running the library's `dialogue.Player`. The game is a second WebAssembly program (about 4 MB compressed) loaded in an iframe the first time the mode opens, so the Voice mode does not pay for it.
+The **Voice** and **Dialogue** buttons in the top bar switch modes. The Dialogue mode edits a [`*.dialogue.json`](guide.md#dialogues-dialoguejson-package-dialogue) file and plays it in a small game: the same dialogue box as `ebiten/example`, running the library's `dialogue.Player`. The game is a second WebAssembly program (about 4 MB compressed) loaded in an iframe the first time the mode opens, so the Voice mode does not pay for it.
 
-- The text starts as the example dialogue. **Start from the example**, **Open…**, **Download** and **Copy** work on the dialogue as for voices. A speaker's `voice` is a starter voice name; voice files are not available in this mode yet, and naming one is a problem at `speakers[i].voice`.
-- The game loads every valid edit about 0.3 s after the last keystroke and continues on the line it was on. **Problems** lists what the library's loader finds, each with its JSON path, exactly as a Go program sees them.
-- **Restart** plays from the first line, **from line … Play** from the line you choose, **Pause** and **Resume** stop time (the sounding notes are released). **Auto-advance** goes on after every line by itself (`hold` seconds), without a click. Inside the game, a click or Space skips the typing or goes on.
-- The status line under the game names the line it is on and who says it.
-- Sound starts with the first click **inside the game**: a click on the page's buttons does not start it, because the game has its own audio context (measured in Chromium, with and without its autoplay flag). The game says so until it is running. Switching to the Voice mode pauses the game, and the Voice preview stops when the Dialogue mode opens, so only one sounds at a time.
-- The dialogue text, the mode, auto-advance and the volume are kept in local storage.
-
+- **Script** is a form. The **Speakers** table has an id, the name the box shows, a voice dropdown (the starter voices and the voice files of the workspace), a pan and **Edit voice**, which opens that voice in the Voice mode. A speaker that lines still use cannot be deleted. **Lines** has one row per line: a speaker dropdown (each speaker has its colour), the text, **▸** (hear this line in the speaker's voice on the editor's own preview, no game needed), **⏵** (play the game from this line), move up and down and delete. **Timing** opens delay, speed, instant, advance and hold; an empty field is at its default and left out of the file. Enter in a text adds a line below with the next speaker (a dialogue takes turns), Alt+↑ and Alt+↓ move the line. The line the game is on has an outline; a problem of the loader shows at its row. **Source** is the same file as JSON text; both tabs edit one document, written in the example's style.
+- **Undo** and **Redo** (Ctrl+Z, Ctrl+Shift+Z) step through the edits of both tabs.
+- Every change is checked by the library's own loader, running in the game: **Problems** lists what it finds with the JSON paths, exactly as a Go program sees them.
+- **Voice files** are the workspace: a list of voice files by name, kept in the browser (IndexedDB). The Voice mode keeps its current voice in it under its file name (or `<name>.voice.json`), and the **Voice file** menu in the top bar switches between them. Open and drop add files (a voice file dropped on the Dialogue mode joins the workspace; **Add voice file…** does the same), and a dialogue that names a file the workspace lacks shows a problem at `speakers[i].voice`. Sample files the voices need are the ones from the Voice mode.
+- **Open…**, dropping a file or pasting JSON with a `lines` list opens a dialogue (the page tells it from a voice by its `lines`). **Download** writes `<name>.dialogue.json`, **Download all** writes the dialogue and every workspace voice it uses, one download per file (there is no zip), **Copy** puts the JSON on the clipboard. **Share link** copies an address (`#d=`) that carries the dialogue and the voice files it uses, compressed like the voice link; a link for two custom voices is a few kilobytes.
+- The game loads every valid edit about 0.3 s after the last keystroke and continues on the line it was on; with **Apply edits live** off, edits wait until you press **Restart**. **Restart** plays from the first line, **from line … Play** from the line you choose, **Pause** and **Resume** stop time (the sounding notes are released). **Auto-advance** goes on after every line by itself (`hold` seconds). Inside the game, a click or Space skips the typing or goes on. Voices edited in the Voice mode reach the game when you come back.
+- Sound starts with the first click **inside the game**: a click on the page's buttons does not start it, because the game has its own audio context (measured in Chromium, with and without its autoplay flag). The game says so until it is running. Switching to the Voice mode pauses the game, the Voice preview stops when the Dialogue mode opens, and a line preview pauses the game, so only one sounds at a time.
+- The dialogue text, the tab, the mode and the settings are kept in local storage.
 
 ## Building and running locally
 
@@ -39,7 +40,7 @@ The **Voice** and **Dialogue** buttons in the top bar switch modes. The Dialogue
 make editor        # the site in build/editor (voice.wasm, game.wasm, wasm_exec.js from your Go, the page, the starter voices)
 make editor-serve  # builds and serves it on http://localhost:8000
 make editor-test   # node --test of the page's scripts
-make editor-smoke  # headless Chromium: every starter plays, problems, transport, open, download, draft, roll, Hear, WAV, beat grid, samples, language, share link, the Dialogue mode
+make editor-smoke  # headless Chromium: every starter plays, problems, transport, open, download, draft, roll, Hear, WAV, beat grid, samples, language, share link, the Dialogue mode, the Script tab, the workspace, the dialogue share link
 ```
 
 `make editor-smoke` needs Playwright with Chromium (`require('playwright')` must work, for example through `NODE_PATH`). The site is static and uses relative URLs, so any static file server works; it must serve `.wasm` as `application/wasm`.

@@ -7,6 +7,7 @@
 //   make editor-smoke        (builds build/editor first)
 "use strict";
 const path = require("node:path");
+const { readFileSync } = require("node:fs");
 const assert = require("node:assert/strict");
 const { chromium } = require("playwright");
 const { serve } = require("./serve.cjs");
@@ -120,6 +121,8 @@ async function main() {
     console.log("ok share link");
     await dialogueMode(page);
     console.log("ok dialogue mode");
+    await scriptAndWorkspace(page, context);
+    console.log("ok script tab, workspace, share link");
     await themeToggle(page);
     console.log("ok theme toggle");
   } catch (e) {
@@ -152,6 +155,7 @@ async function dialogueMode(page) {
   await page.waitForFunction(() => document.getElementById("dlg-status").textContent.startsWith("Line 1 of 9: Wren"), null, { timeout: 10000 });
   assert.match(await page.inputValue("#dlg-doc"), /"name": "village"/);
 
+  await page.click("#dlg-tab-source");
   // A short dialogue plays hands-free to its end, the lines in order.
   const short = JSON.stringify({
     version: 0, hold: 0.2,
@@ -199,6 +203,88 @@ async function dialogueMode(page) {
   await page.click("#mode-voice");
   assert.equal(await page.getAttribute("body", "data-mode"), "voice");
   assert.ok(await page.isVisible("#voice-mode"), "the voice editor is back");
+}
+
+/**
+ * The Script tab, the workspace and sharing: lines and speakers are edited with
+ * the form and reach the game, a voice file of the workspace plays, a missing
+ * one shows its problem, and a share link reopens the dialogue with its voices.
+ */
+async function scriptAndWorkspace(page, context) {
+  const doc = async () => JSON.parse(await page.inputValue("#dlg-doc"));
+  await page.click("#mode-dialogue");
+  await page.click("#dlg-tab-script");
+  await page.click("#dlg-example");
+  await page.waitForFunction(() => document.querySelectorAll("#dlg-script .line").length === 9, null, { timeout: 10000 });
+  await page.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 60000 });
+  assert.equal(await page.locator("#dlg-script .speaker").count(), 3);
+
+  // Enter adds a line with the next speaker; the text reaches the document and the game.
+  await page.click('#dlg-script .line[data-i="8"] .text');
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Hello again.");
+  await page.waitForFunction(() => document.querySelectorAll("#dlg-script .line").length === 10);
+  const last = (await doc()).lines[9];
+  assert.deepEqual(last, { speaker: "wren", text: "Hello again." }, "Enter adds a line for the next speaker (after the last one comes the first)");
+  await page.waitForFunction(() => document.getElementById("dlg-status").textContent.includes("of 10"), null, { timeout: 10000 });
+
+  // Alt+Up moves it, Timing leaves a default out of the file.
+  await page.keyboard.press("Alt+ArrowUp");
+  assert.equal((await doc()).lines[8].text, "Hello again.");
+  await page.click('#dlg-script .line[data-i="8"] summary');
+  await page.fill('#dlg-script .line[data-i="8"] input[placeholder="0"]', "0.4");
+  assert.equal((await doc()).lines[8].delay, 0.4);
+  await page.fill('#dlg-script .line[data-i="8"] input[placeholder="0"]', "0");
+  assert.equal("delay" in (await doc()).lines[8], false, "a default is left out");
+
+  // A speaker's voice and pan are form fields; undo and redo walk back.
+  await page.selectOption('#dlg-script .speaker[data-i="0"] .sp-voice', "robot");
+  assert.equal((await doc()).speakers[0].voice, "robot");
+  await page.click("#dlg-undo");
+  assert.equal((await doc()).speakers[0].voice, "chirpy", "undo restores the voice");
+  await page.click("#dlg-redo");
+  assert.equal((await doc()).speakers[0].voice, "robot");
+
+  // A voice file: unknown at first (a problem at its speaker), then added to the workspace.
+  const bram = readFileSync(path.join(__dirname, "../../presets/gruff.voice.json"), "utf8").replace('"name": "gruff"', '"name": "bram"');
+  await page.selectOption('#dlg-script .speaker[data-i="1"] .sp-voice', "gruff");
+  await page.click("#dlg-tab-source");
+  const withFile = (await page.inputValue("#dlg-doc")).replace('"voice": "gruff"', '"voice": "bram.voice.json"');
+  await page.fill("#dlg-doc", withFile);
+  await page.waitForFunction(() => document.getElementById("dlg-problems").textContent.includes("speakers[1].voice"), null, { timeout: 10000 });
+  await page.setInputFiles("#dlg-voice-files", { name: "bram.voice.json", mimeType: "application/json", buffer: Buffer.from(bram) });
+  await page.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 10000 });
+
+  // The Voice mode edits the file and the workspace lists it.
+  await page.click("#dlg-tab-script");
+  await page.click('#dlg-script .speaker[data-i="1"] button:has-text("Edit voice")');
+  await page.waitForFunction(() => document.body.dataset.mode === "voice", null, { timeout: 5000 });
+  await page.waitForFunction(() => document.getElementById("voice-file").value === "bram.voice.json", null, { timeout: 5000 });
+  assert.ok((await page.$$eval("#voice-file option", (os) => os.map((o) => o.value))).includes("bram.voice.json"));
+
+  // Download all: the dialogue and the voice file.
+  await page.click("#mode-dialogue");
+  const names = [];
+  page.on("download", (d) => names.push(d.suggestedFilename()));
+  await page.click("#dlg-download-all");
+  await page.waitForTimeout(1500);
+  assert.ok(names.some((n) => n.endsWith(".dialogue.json")) && names.includes("bram.voice.json"), `downloads: ${names}`);
+
+  // A share link carries the dialogue and the voice file it uses.
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.click("#dlg-share");
+  await page.waitForFunction(() => document.getElementById("toast").textContent === "Link copied" && !document.getElementById("toast").hidden, null, { timeout: 10000 });
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(link, /#d=/);
+  const text = await page.inputValue("#dlg-doc");
+  const other = await context.newPage();
+  other.on("pageerror", (e) => console.error("page error:", e.message));
+  await other.goto(link);
+  await other.waitForSelector("body[data-ready=true]", { timeout: 30000 });
+  assert.equal(await other.inputValue("#dlg-doc"), text, "the link reopens the dialogue");
+  assert.ok((await other.$$eval("#voice-file option", (os) => os.map((o) => o.value))).includes("bram.voice.json"), "and its voice file");
+  await other.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 60000 });
+  await other.close();
 }
 
 /** The Theme button forces light or dark whatever the system says, and remembers it. */

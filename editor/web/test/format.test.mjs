@@ -59,3 +59,19 @@ test("get", () => {
   assert.equal(get(d, "a.c"), undefined);
   assert.equal(get(d, "a.b.c"), undefined);
 });
+
+import { formatDialogue } from "../format.js";
+
+test("formatting the village dialogue reproduces its file", () => {
+  const text = readFileSync(new URL("../../../ebiten/example/village.dialogue.json", import.meta.url), "utf8");
+  assert.equal(formatDialogue(JSON.parse(text)), text);
+});
+
+test("a dialogue is written in the format's key order, unknown keys last", () => {
+  const out = formatDialogue({ lines: [{ text: "x", speaker: "a", extra: 1 }], speakers: [{ voice: "soft", id: "a" }], version: 0 });
+  assert.equal(
+    out,
+    '{\n  "version": 0,\n  "speakers": [\n    { "id": "a", "voice": "soft" }\n  ],\n  "lines": [\n    { "speaker": "a", "text": "x", "extra": 1 }\n  ]\n}\n',
+  );
+  assert.equal(formatDialogue({ version: 0, speakers: [], lines: [] }), '{\n  "version": 0,\n  "speakers": [],\n  "lines": []\n}\n');
+});
