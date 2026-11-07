@@ -4,7 +4,6 @@ A Go library that turns dialogue text into musical gibberish for games. Text is 
 
 It works in any Go program, with any audio output, natively and in js/wasm, and renders offline to WAV. The core module has no dependencies. MIT licensed.
 
-**Status:** milestones 1 to 3 are built: the synthesizer, languages, voices, the parser, the composer, the `Speaker` runtime and the Ebiten player. The library is at version 0; formats and API may still change.
 
 Hear the starter voices:
 
