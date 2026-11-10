@@ -74,7 +74,13 @@ type Speaker struct {
 type Line struct {
 	// Speaker is the ID of a speaker of the script.
 	Speaker string
-	Text    string
+	// Text is the text to show and speak: the file's text with its voice
+	// markup removed (see [voice.ParseMarkup]). Source is the text as the
+	// file has it, with the markup.
+	Text, Source string
+	// Spans are the parts of Text that other speakers' voices speak,
+	// written {id}…{/} in the file; nil without markup.
+	Spans []Span
 	// Delay is the time in seconds before the line starts, 0 to 10.
 	Delay float32
 	// Speed is [voice.SayOptions].Speed, 0.25 to 4.
@@ -83,6 +89,18 @@ type Line struct {
 	// Advance and Hold: see [Script].
 	Advance Advance
 	Hold    float32
+}
+
+// Span is a part of a line spoken in another speaker's voice: the bytes
+// Start to End of [Line].Text. The line's speaker keeps the line (its pan,
+// motif and ending); see [voice.VoiceSpan].
+type Span struct {
+	Start, End int
+	// Speaker is the ID of the speaker whose voice speaks the span. A
+	// speaker that has no lines of its own is fine.
+	Speaker string
+	// Impression is true for {id~}: the line's speaker imitates the voice.
+	Impression bool
 }
 
 type scriptFile struct {
@@ -167,6 +185,28 @@ func (p *problems) advance(path, s string) Advance {
 	return ""
 }
 
+// markup parses the voice markup of a line's text and checks that its
+// names are speaker IDs. Problems name the byte offset in the file's text.
+func (p *problems) markup(path, src string, ids map[string]bool) (string, []Span) {
+	text, ms, err := voice.ParseMarkup(src)
+	if err != nil {
+		for _, e := range err.(interface{ Unwrap() []error }).Unwrap() {
+			if me, ok := e.(*voice.MarkupError); ok {
+				p.add(path, "byte %d: %s", me.Offset, me.Message)
+			}
+		}
+	}
+	var spans []Span
+	for _, m := range ms {
+		if !ids[m.Name] {
+			p.add(path, "{%s} is not a speaker of the dialogue", m.Name)
+			continue
+		}
+		spans = append(spans, Span{Start: m.Start, End: m.End, Speaker: m.Name, Impression: m.Impression})
+	}
+	return text, spans
+}
+
 // voiceRefProblem says why ref is not a starter voice or a voice file name.
 func voiceRefProblem(ref string) string {
 	switch {
@@ -239,10 +279,11 @@ func (f *scriptFile) build() (*Script, error) {
 		case !ids[lf.Speaker]:
 			p.add(at+".speaker", "unknown speaker %q", lf.Speaker)
 		}
-		if strings.TrimSpace(lf.Text) == "" {
+		text, spans := p.markup(at+".text", lf.Text, ids)
+		if strings.TrimSpace(text) == "" {
 			p.add(at+".text", "missing or empty")
 		}
-		l := Line{Speaker: lf.Speaker, Text: lf.Text, Delay: lf.Delay, Speed: 1, Instant: lf.Instant, Hold: s.Hold}
+		l := Line{Speaker: lf.Speaker, Text: text, Source: lf.Text, Spans: spans, Delay: lf.Delay, Speed: 1, Instant: lf.Instant, Hold: s.Hold}
 		p.inRange(at+".delay", lf.Delay, 0, MaxDelay)
 		if lf.Speed != nil {
 			p.inRange(at+".speed", *lf.Speed, MinLineSpeed, MaxLineSpeed)

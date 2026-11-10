@@ -49,7 +49,7 @@ He growled {gruff~}keep your boots dry{/} at me.
 - `{{` is a literal `{`; a `}` outside a tag is literal.
 - A name uses `a-z`, `0-9`, `_`, `.` and `-`. Names starting with `#` are reserved for other tags. Spans do not nest and are not empty.
 
-`voice.ParseMarkup(src)` returns the text to show and speak (tags removed), the spans (`MarkupSpan`: `Start`, `End` byte offsets into that text, `Name`, `Impression`) and every problem together (`*MarkupError` with the byte offset in `src`). The text and the well-formed spans come back also on error. What a name means is the caller's: `voiceplay` and `say` take starter voices and voice files.
+`voice.ParseMarkup(src)` returns the text to show and speak (tags removed), the spans (`MarkupSpan`: `Start`, `End` byte offsets into that text, `Name`, `Impression`) and every problem together (`*MarkupError` with the byte offset in `src`). The text and the well-formed spans come back also on error. What a name means is the caller's: `voiceplay` and `say` take starter voices and voice files, a [dialogue](#dialogues-dialoguejson-package-dialogue) takes speaker ids.
 
 ```go
 text, ms, err := voice.ParseMarkup(src)
@@ -100,13 +100,13 @@ A dialogue is a conversation: lines said by speakers, each speaker with its own 
 | `speakers[].voice` | required: a starter voice name (`chirpy`) or a `*.voice.json` file name relative to the dialogue file (no `..`) |
 | `speakers[].pan` | -1 to 1, replaces the voice's pan for this speaker |
 | `lines[]` | at least one |
-| `lines[].speaker`, `lines[].text` | required: the id of a speaker, and the text (not empty) |
+| `lines[].speaker`, `lines[].text` | required: the id of a speaker, and the text (not empty). The text may give words to other speakers' voices with [markup](#other-voices-inside-a-line): `"Grandpa said {bram}keep your boots dry{/}."` A tag names a speaker id (not a starter voice or file); a speaker without lines of its own is fine, for a voice that only speaks through others |
 | `lines[].delay` | seconds before the line starts, 0 to 10 (default 0) |
 | `lines[].speed` | `SayOptions.Speed`, 0.25 to 4 (default 1) |
 | `lines[].instant` | `SayOptions.Instant` |
 | `lines[].advance`, `lines[].hold` | override the dialogue's values for this line |
 
-Every problem of a file is returned together (`errors.Join`) as a `voice.FieldError` with `File` `"dialogue"` and the JSON path (`lines[1].speaker`); `LoadFS` prefixes the file name. `Load` fills in every default, so a `Line`'s `Advance` and `Hold` are what the player uses. `LoadVoices` returns the voices keyed by the speaker's `voice` text; a voice that does not load is a problem at `speakers[i].voice`.
+Every problem of a file is returned together (`errors.Join`) as a `voice.FieldError` with `File` `"dialogue"` and the JSON path (`lines[1].speaker`); `LoadFS` prefixes the file name. Markup problems and tags that name no speaker are at `lines[i].text`, with the byte offset in the file's text. `Load` fills in every default, so a `Line`'s `Advance` and `Hold` are what the player uses. A `Line`'s `Text` is the text to show and speak (the markup removed), `Source` the text as written, and `Spans` the spans (`Start`, `End` in `Text`, `Speaker`, `Impression`). `LoadVoices` returns the voices keyed by the speaker's `voice` text; a voice that does not load is a problem at `speakers[i].voice`.
 
 ```go
 script, _ := dialogue.LoadFS(fsys, "village.dialogue.json")
@@ -126,7 +126,8 @@ for _, e := range player.Events() { ... }  // LineStarted, LineDone, DialogueFin
 - A line goes through the phases `Waiting` (its `delay`), `Speaking`, `Holding` (finished; waits for `Next`, or for its `hold` when it advances by itself) and, after the last line, `Finished`. `Phase()` tells which one. `Index()`, `Line()` and `Speaker()` describe the current line; `Revealed()` is how many bytes of its text to show (none while waiting, all while holding).
 - `Next()` is the input: while a line types out it shows the rest of it (`LineDone`), while a finished line holds it goes on to the next one (or finishes). During a delay and after the end it does nothing. `Start(i)` jumps to line `i` (it panics for an index outside the script), also after `Finished`. `Pause()` and `Resume()` stop and continue time everywhere; `Stop()` ends the dialogue (phase `Finished`, no event); `Close()` stops and makes later calls do nothing.
 - `Events()` are `LineStarted` (the delay passed and the line began), `LineDone` (it completed or was skipped) and `DialogueFinished`, each with the line index and `At`, the player's clock (the sum of the `Update` times). As with the speaker, the slice is valid until the next `Update`.
-- Like the speaker, every note the player starts ends: `Next`, `Start`, `Pause`, `Stop` and `Close` release the notes of the speaker involved. `Update` allocates nothing in steady state; starting a line does. The same script and options give the same events.
+- A line's spans play in their speakers' voices on those speakers' owners, with the line's speaker's pan (see [Other voices inside a line](#other-voices-inside-a-line)). Lines never overlap, so those owners are free while the line plays.
+- Like the speaker, every note the player starts ends: `Next`, `Start`, `Pause`, `Stop` and `Close` release the notes of the speaker involved and of the speakers its spans use. `Update` allocates nothing in steady state; starting a line does. The same script and options give the same events.
 
 ## Ebiten (module `github.com/weakpixel/voice/ebiten`)
 
@@ -136,7 +137,7 @@ Until the root module has a version tag, the nested module finds it through a `r
 
 ### The dialogue box (`ebiten/dialoguebox`)
 
-`dialoguebox.New(stream, opts)` returns an `ebiten.Game` that shows a [dialogue](#dialogues-dialoguejson-package-dialogue): a box at the bottom with the speaker's name and the text typing out in the speaker's voice. `SetScript(script, voices, start)` swaps the dialogue while the game runs (it closes the old player, sets the speakers' voices on the stream and plays line `start`; on an error the old dialogue stays). Space, Enter or a click skips the typing or goes on; after the last line a click starts again. `Options.AutoAdvance` plays hands-free and `Options.Languages` resolves voice languages. The box makes no audio context: the caller plays the stream (with `voiceebiten.NewPlayer`). `Step(dt)` advances the dialogue without input, for tests.
+`dialoguebox.New(stream, opts)` returns an `ebiten.Game` that shows a [dialogue](#dialogues-dialoguejson-package-dialogue): a box at the bottom with the speaker's name and the text typing out in the speaker's voice. `SetScript(script, voices, start)` swaps the dialogue while the game runs (it closes the old player, sets the speakers' voices on the stream and plays line `start`; on an error the old dialogue stays). Space, Enter or a click skips the typing or goes on; after the last line a click starts again. The top bar names the voice, and while a span is spoken also the span's voice (`voice: verse + chirpy`). `Options.AutoAdvance` plays hands-free and `Options.Languages` resolves voice languages. The box makes no audio context: the caller plays the stream (with `voiceebiten.NewPlayer`). `Step(dt)` advances the dialogue without input, for tests.
 
 The example is a short `main` around the box. It plays the embedded `ebiten/example/village.dialogue.json` (three characters, one speaks in rhythm with `verse`), or any dialogue file you name; voice files it uses are read from that file's folder:
 
@@ -424,6 +425,7 @@ cd ebiten
 go run ./cmd/say "Hello there, traveler!"
 go run ./cmd/say -voice flow "Yo, listen up. I came from the hills, with nothing but skills."
 go run ./cmd/say -voice my.voice.json -lang my.lang.json "Kel thae, varan."
+go run ./cmd/say -voice chirpy "I am {divine}not alone{/} in here."
 go build -o ../build/say ./cmd/say
 ```
 
@@ -432,6 +434,7 @@ go build -o ../build/say ./cmd/say
 | `-voice` | as for `voiceplay` (default `soft`) |
 | `-lang` | as for `voiceplay` |
 | `-volume` | playback volume, 0 to 1 (default 1) |
+| `-plain` | speak the text as written, without [markup](#other-voices-inside-a-line) |
 | `-rate` | sample rate (default 48000) |
 
-Ctrl+C stops the line and releases its notes. Exit codes: 0 success (also after Ctrl+C), 1 failure (bad voice or language, no audio device), 2 usage error. On Linux the audio goes through PulseAudio (or PipeWire's PulseAudio server), falling back to ALSA.
+The line may use [markup](#other-voices-inside-a-line) as in `voiceplay`. Ctrl+C stops the line and releases its notes. Exit codes: 0 success (also after Ctrl+C), 1 failure (bad voice or language, a tag's voice that does not load, no audio device), 2 usage error (also bad markup). On Linux the audio goes through PulseAudio (or PipeWire's PulseAudio server), falling back to ALSA.

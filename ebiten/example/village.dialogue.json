@@ -15,6 +15,6 @@
     { "speaker": "bram", "text": "Then I had better hurry." },
     { "speaker": "kip", "text": "Hold up, traveler, hear me out. The mill is old, but the road is long, and the river sings a different song." },
     { "speaker": "bram", "text": "...Who are you?" },
-    { "speaker": "kip", "text": "Just a bard on a bridge, with a beat in my head. Follow the water, like I said!" }
+    { "speaker": "kip", "text": "Just a bard on a bridge, with a beat in my head. {wren}Follow the river{/}, like the lady said!" }
   ]
 }

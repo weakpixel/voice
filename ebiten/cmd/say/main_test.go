@@ -27,6 +27,9 @@ func TestParse(t *testing.T) {
 		{"no text", []string{"-voice", "gruff"}, false, "", "give a line of text"},
 		{"bad flag", []string{"-nope", "Hi."}, false, "", "flag provided but not defined"},
 		{"bad volume", []string{"-volume", "2", "Hi."}, false, "Hi.", "-volume must be between 0 and 1"},
+		{"markup", []string{"He said {gruff}stay{/}."}, true, "He said stay.", ""},
+		{"plain", []string{"-plain", "a {x}"}, true, "a {x}", ""},
+		{"bad markup", []string{"a {gruff}b"}, false, "a b", "not closed"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -121,4 +124,21 @@ func longestGap(t *testing.T, name string, rate, chunkBytes int) time.Duration {
 		}
 	}
 	return time.Duration(longest) * 5 * time.Millisecond
+}
+
+func TestLoadGuests(t *testing.T) {
+	_, ms, _ := voice.ParseMarkup("{gruff}a{/} b {chirpy~}c{/} {gruff}d{/}")
+	guests, spans, err := loadGuests(ms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(guests) != 2 || guests[0].owner != 2 || guests[1].owner != 3 {
+		t.Fatalf("guests %+v", guests)
+	}
+	if len(spans) != 3 || spans[2].Owner != 2 || !spans[1].Impression || spans[0].Voice != guests[0].voice {
+		t.Errorf("spans %+v", spans)
+	}
+	if _, _, err := loadGuests([]voice.MarkupSpan{{Name: "nobody"}}); err == nil || !strings.Contains(err.Error(), "{nobody}") {
+		t.Errorf("unknown voice: %v", err)
+	}
 }
