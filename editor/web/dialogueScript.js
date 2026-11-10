@@ -19,6 +19,7 @@ export function speakerColor(i) {
  *   onPlayFrom: (i: number) => void,
  *   onEditVoice: (ref: string) => void,
  *   onAddVoiceFile: () => void,
+ *   toast?: (message: string) => void,
  * }} Handlers
  */
 
@@ -99,7 +100,7 @@ export class ScriptEditor {
       const used = E.speakerUsed(doc, s?.id);
       const edit = el("button", { type: "button", className: "small", textContent: "Edit voice", title: "Open this voice in the Voice mode" });
       edit.addEventListener("click", () => this.h.onEditVoice(s?.voice ?? ""));
-      const del = el("button", { type: "button", className: "small", textContent: "✕", ariaLabel: "Delete speaker", disabled: used, title: used ? "Lines still use this speaker" : "Delete the speaker" });
+      const del = el("button", { type: "button", className: "small", textContent: "✕", ariaLabel: "Delete speaker", disabled: used, title: used ? "Lines or voice spans still use this speaker" : "Delete the speaker" });
       del.addEventListener("click", () => this.edit(E.removeSpeaker(this.doc, i), true));
       row.append(id, name, voice, pan, edit, del, el("div", { className: "row-problem" }));
       table.append(row);
@@ -153,9 +154,25 @@ export class ScriptEditor {
     who.addEventListener("change", () => this.edit(E.setLineField(this.doc, i, "speaker", who.value), true));
 
     const text = el("input", { type: "text", className: "text", value: l?.text ?? "", ariaLabel: `Line ${i + 1}`, placeholder: "What they say" });
-    text.addEventListener("input", () => this.edit(E.setLineField(this.doc, i, "text", text.value), false));
+    const marks = el("div", { className: "text-marks", ariaHidden: "true" });
+    const paint = () => {
+      this.paintMarks(marks, text.value, sp);
+      marks.scrollLeft = text.scrollLeft;
+    };
+    paint();
+    text.addEventListener("input", () => {
+      paint();
+      this.edit(E.setLineField(this.doc, i, "text", text.value), false);
+    });
+    text.addEventListener("scroll", () => (marks.scrollLeft = text.scrollLeft));
+    const voiceBtn = el("button", { type: "button", className: "small voice-btn", textContent: "Voice ▾", title: "Give the selected words another speaker's voice (Alt+V)", ariaLabel: "Voice for the selected words", ariaHasPopup: "menu" });
+    voiceBtn.addEventListener("mousedown", (e) => e.preventDefault()); // keep the text's selection
+    voiceBtn.addEventListener("click", () => this.voiceMenu(i, text, voiceBtn));
     text.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey && !e.altKey) {
+      if (e.altKey && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        this.voiceMenu(i, text, voiceBtn);
+      } else if (e.key === "Enter" && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         this.edit(E.addLine(this.doc, i, E.nextSpeaker(this.doc, i)), true, `.line[data-i="${i + 1}"] .text`);
       } else if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
@@ -176,9 +193,90 @@ export class ScriptEditor {
     const down = button("↓", "Move down (Alt+↓)", () => this.edit(E.moveLine(this.doc, i, 1), true), { disabled: i === E.lines(doc).length - 1 });
     const del = button("✕", "Delete the line", () => this.edit(E.removeLine(this.doc, i), true));
 
-    const main = el("div", { className: "line-main" }, who, text, hear, from, up, down, del);
+    const main = el("div", { className: "line-main" }, who, el("div", { className: "text-wrap" }, marks, text), voiceBtn, hear, from, up, down, del);
     li.append(main, this.timing(l, i), el("div", { className: "row-problem" }));
     return li;
+  }
+
+  /** Draws the highlight under a line's text: each voice span in its speaker's colour, its tags dimmed. */
+  paintMarks(marks, value, sp) {
+    marks.replaceChildren();
+    let at = 0;
+    for (const s of E.spansOf(value)) {
+      const k = sp.findIndex((x) => x?.id === s.name);
+      const color = k < 0 ? "var(--error)" : speakerColor(k);
+      marks.append(value.slice(at, s.open[0]));
+      const tag = (a, b) => el("span", { className: "tag", textContent: value.slice(a, b) });
+      const inner = el("mark", { textContent: value.slice(s.open[1], s.close[0]), title: s.impression ? `${s.name} (impression)` : s.name });
+      inner.style.setProperty("--c", color);
+      if (s.impression) inner.classList.add("impression");
+      marks.append(tag(s.open[0], s.open[1]), inner, tag(s.close[0], s.close[1]));
+      at = s.close[1];
+    }
+    marks.append(value.slice(at) + " "); // a trailing space keeps the last character's width
+  }
+
+  /**
+   * The Voice menu of line i: the speakers (giving the selected words their
+   * voice, or changing the voice of the span at the caret), Impression,
+   * Remove voice and New speaker for a voice.
+   */
+  voiceMenu(i, input, anchor) {
+    this.root.querySelector(".voice-menu")?.remove();
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? start;
+    const inside = E.spanAt(input.value, start, end);
+    if (!inside && start === end) {
+      this.h.toast?.("Select the words first, then pick the voice that says them");
+      input.focus();
+      return;
+    }
+    const menu = el("div", { className: "voice-menu", role: "menu" });
+    const close = () => {
+      menu.remove();
+      removeEventListener("pointerdown", outside, true);
+    };
+    const outside = (e) => {
+      if (!menu.contains(/** @type {Node} */ (e.target))) close();
+    };
+    addEventListener("pointerdown", outside, true);
+    const impression = el("input", { type: "checkbox", checked: !!inside?.impression });
+    const give = (id) => {
+      close();
+      this.edit(E.wrapSpan(this.doc, i, start, end, id, impression.checked), true, `.line[data-i="${i}"] .text`);
+    };
+    E.speakers(this.doc).forEach((s, k) => {
+      if (!s?.id) return;
+      const b = el("button", { type: "button", role: "menuitem", className: "small", textContent: s.name || s.id });
+      b.style.setProperty("--c", speakerColor(k));
+      if (inside?.name === s.id) b.classList.add("chosen");
+      b.addEventListener("click", () => give(s.id));
+      menu.append(b);
+    });
+    const add = el("button", { type: "button", role: "menuitem", className: "small", textContent: "New speaker for a voice…", title: "Adds a speaker without lines (pick its voice in the Speakers table) and gives it these words" });
+    add.addEventListener("click", () => {
+      close();
+      const doc = E.addSpeaker(this.doc, this.h.starters);
+      const id = E.speakers(doc).at(-1).id;
+      this.edit(E.wrapSpan(doc, i, start, end, id, impression.checked), true, `.speaker:last-child .sp-voice`);
+    });
+    menu.append(el("label", { className: "field-inline", title: "The line's speaker imitates the voice: its sound, halfway to its pitch" }, impression, " Impression"), add);
+    if (inside) {
+      const rm = el("button", { type: "button", role: "menuitem", className: "small", textContent: "Remove voice" });
+      rm.addEventListener("click", () => {
+        close();
+        this.edit(E.unwrapSpan(this.doc, i, start), true, `.line[data-i="${i}"] .text`);
+      });
+      menu.append(rm);
+    }
+    (anchor.closest(".line-main") ?? anchor).after(menu);
+    /** @type {HTMLElement | null} */ (menu.querySelector("button"))?.focus();
+    menu.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        close();
+        input.focus();
+      }
+    });
   }
 
   /** The Timing disclosure: fields left empty are at their default and left out of the file. */

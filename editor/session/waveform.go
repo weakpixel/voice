@@ -6,11 +6,13 @@ import (
 	"github.com/weakpixel/voice/wav"
 )
 
-// StartRender starts an offline render of text with the session's voice
-// and language (see LineRender), for the piano roll, the waveform and the
-// WAV download. It does not touch the live stream.
-func (s *Session) StartRender(text string, o Options) (*LineRender, error) {
-	return NewLineRender(s.v, s.lang, text, o, s.SampleRate(), s.load)
+// StartRender starts an offline render of the line src (voice markup as in
+// Say) with the session's voice, guests and language (see LineRender), for
+// the piano roll, the waveform and the WAV download. It does not touch the
+// live stream.
+func (s *Session) StartRender(src string, o Options) (*LineRender, error) {
+	text, spans, _ := s.line(src)
+	return newLineRender(s.v, s.lang, text, spans, o, s.SampleRate(), s.load)
 }
 
 // Peaks reduces a stereo render to n columns for a waveform: for each

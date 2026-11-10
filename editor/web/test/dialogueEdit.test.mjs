@@ -78,3 +78,31 @@ test("edited documents format back in the example's style", () => {
   assert.ok(text.includes('{ "speaker": "bram", "text": "Hi." }'));
   assert.deepEqual(JSON.parse(text), d);
 });
+
+test("voice spans: parse, shown text, wrap, retag, unwrap", () => {
+  const t = "Grandpa said {bram}keep dry{/}, and {{x} {ghost~}hi{/ghost}.";
+  const sp = E.spansOf(t);
+  assert.deepEqual(sp.map((s) => [s.name, s.impression, t.slice(s.open[1], s.close[0])]), [["bram", false, "keep dry"], ["ghost", true, "hi"]]);
+  assert.equal(E.shownText(t), "Grandpa said keep dry, and {x} hi.");
+  assert.deepEqual(E.spansOf("{a}{/} {b}x {/c} {Bad}y{/}"), []);
+
+  const doc = { version: 0, speakers: [{ id: "wren" }, { id: "bram" }], lines: [{ speaker: "wren", text: "I said keep dry now" }] };
+  const at = (s) => doc.lines[0].text.indexOf(s);
+  let d = E.wrapSpan(doc, 0, at("keep") - 1, at("dry") + 4, "bram"); // spaces at the ends are left out
+  assert.equal(d.lines[0].text, "I said {bram}keep dry{/} now");
+  assert.equal(E.wrapSpan(d, 0, 9, 12, "wren", true).lines[0].text, "I said {wren~}keep dry{/} now"); // inside: retag
+  assert.equal(E.wrapSpan(d, 0, 2, 10, "wren"), d); // crosses a tag: nothing
+  assert.equal(E.wrapSpan(d, 0, 3, 3, "wren"), d); // empty
+  assert.equal(E.unwrapSpan(d, 0, 15).lines[0].text, "I said keep dry now");
+  assert.equal(E.unwrapSpan(d, 0, 2), d);
+  assert.equal(doc.lines[0].text, "I said keep dry now"); // inputs unchanged
+});
+
+test("voice spans: a speaker in a span is in use; renaming renames the tags", () => {
+  const doc = { version: 0, speakers: [{ id: "wren" }, { id: "bram" }], lines: [{ speaker: "wren", text: "a {bram}b{/} {bram~}c{/bram}" }] };
+  assert.ok(E.speakerUsed(doc, "bram"));
+  assert.ok(!E.speakerUsed(doc, "kip"));
+  const r = E.setSpeakerField(doc, 1, "id", "old");
+  assert.equal(r.lines[0].text, "a {old}b{/} {old~}c{/old}");
+  assert.equal(r.lines[0].speaker, "wren");
+});
