@@ -27,7 +27,7 @@ var defaultLanguage = sync.OnceValue(func() *Language {
 })
 
 // Preset returns a new copy of a starter voice: "soft", "chirpy", "gruff",
-// "divine", "flow", "verse", "warrior", "robot", "ghost" or "elder" (see [PresetNames]). It returns an error for an unknown name.
+// "divine", "flow", "verse", "warrior", "robot", "ghost", "elder" or "haughty" (see [PresetNames]). It returns an error for an unknown name.
 func Preset(name string) (*Voice, error) {
 	if !slices.Contains(PresetNames(), name) {
 		return nil, fmt.Errorf("voice: unknown preset %q (one of %s)", name, strings.Join(PresetNames(), ", "))
@@ -37,5 +37,5 @@ func Preset(name string) (*Voice, error) {
 
 // PresetNames returns the names of the starter voices.
 func PresetNames() []string {
-	return []string{"soft", "chirpy", "gruff", "divine", "flow", "verse", "warrior", "robot", "ghost", "elder"}
+	return []string{"soft", "chirpy", "gruff", "divine", "flow", "verse", "warrior", "robot", "ghost", "elder", "haughty"}
 }

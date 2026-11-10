@@ -1,0 +1,27 @@
+{
+  "version": 0,
+  "name": "haughty",
+  "baseNote": 54,
+  "variation": 0.3,
+  "velocity": 0.65,
+  "length": 0.6,
+  "speed": 9,
+  "motifVolume": 0.1,
+  "breath": 0.5,
+  "seed": 11,
+  "instruments": {
+    "vowel": {"reverb": 0.12, "wave": "square", "pulseWidth": 0.2, "glideFrom": 4, "glideMs": 90, "attackMs": 4, "decayMs": 110, "sustain": 0.2, "releaseMs": 50, "cutoff": 1600, "resonance": 0.5, "gain": 0.5},
+    "sonorant": {"reverb": 0.12, "wave": "square", "pulseWidth": 0.25, "glideFrom": 2, "glideMs": 60, "attackMs": 4, "decayMs": 100, "sustain": 0.25, "releaseMs": 40, "cutoff": 1000, "resonance": 0.3, "gain": 0.45},
+    "fricative": {"reverb": 0.12, "wave": "noise", "filter": "bandpass", "cutoff": 1400, "resonance": 0.4, "attackMs": 6, "decayMs": 60, "sustain": 0.1, "releaseMs": 30, "gain": 0.9},
+    "plosive": {"reverb": 0.12, "wave": "square", "pulseWidth": 0.2, "glideFrom": 7, "glideMs": 15, "attackMs": 2, "decayMs": 30, "releaseMs": 10, "cutoff": 1200, "gain": 0.5},
+    "motif": {"reverb": 0.2, "wave": "saw", "detune": 0.1, "attackMs": 40, "decayMs": 250, "sustain": 0.6, "releaseMs": 300, "cutoff": 500, "resonance": 0.2, "gain": 0.7}
+  },
+  "rhythm": {
+    "bpm": 132,
+    "division": 2,
+    "accents": [1, 0.85, 0.7, 0.55, 0.4, 0.25, 0.1, 0],
+    "accentPitch": 10,
+    "rest": {"pause": "beat", "end": "bar"},
+    "countIn": 0
+  }
+}

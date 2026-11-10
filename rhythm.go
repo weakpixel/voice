@@ -21,6 +21,10 @@ type Rhythm struct {
 	// (4*Division values). Empty means beats 1 and 3 strong, 2 and 4
 	// medium, the steps between them none.
 	Accents []float32
+	// AccentPitch is how many semitones a step of accent 1 raises its
+	// syllable, 0 to 12 (default 2). Falling accents across a bar with a
+	// large AccentPitch give a line that steps down, like a laugh.
+	AccentPitch float32
 	// PauseRest is where the voice starts again after punctuation without
 	// a contour (a comma), EndRest after punctuation with one (a period,
 	// question or exclamation mark).
@@ -64,11 +68,12 @@ func (r Rest) String() string {
 
 // The defaults of the optional rhythm fields.
 const (
-	DefaultBPM        = 90
-	DefaultDivision   = 4
-	DefaultBeatVolume = 0.8
-	DefaultPauseRest  = RestBeat
-	DefaultEndRest    = RestBar
+	DefaultBPM         = 90
+	DefaultDivision    = 4
+	DefaultBeatVolume  = 0.8
+	DefaultAccentPitch = 2
+	DefaultPauseRest   = RestBeat
+	DefaultEndRest     = RestBar
 )
 
 // Clock ties a rhythmic line to music the game plays: the line takes the
@@ -83,11 +88,12 @@ type Clock struct {
 
 // rhythmFile is the JSON form of a voice file's "rhythm" object.
 type rhythmFile struct {
-	BPM      *float32  `json:"bpm"`
-	Division *int      `json:"division"`
-	Swing    float32   `json:"swing"`
-	Accents  []float32 `json:"accents"`
-	Rest     struct {
+	BPM         *float32  `json:"bpm"`
+	Division    *int      `json:"division"`
+	Swing       float32   `json:"swing"`
+	Accents     []float32 `json:"accents"`
+	AccentPitch *float32  `json:"accentPitch"`
+	Rest        struct {
 		Pause string `json:"pause"`
 		End   string `json:"end"`
 	} `json:"rest"`
@@ -98,14 +104,15 @@ type rhythmFile struct {
 
 func (f *rhythmFile) build(errs *fieldErrors) *Rhythm {
 	r := &Rhythm{
-		BPM:        orDefault(f.BPM, DefaultBPM),
-		Division:   DefaultDivision,
-		Swing:      f.Swing,
-		Accents:    f.Accents,
-		PauseRest:  parseRest(errs, "rhythm.rest.pause", f.Rest.Pause, DefaultPauseRest),
-		EndRest:    parseRest(errs, "rhythm.rest.end", f.Rest.End, DefaultEndRest),
-		CountIn:    f.CountIn,
-		BeatVolume: orDefault(f.BeatVolume, DefaultBeatVolume),
+		BPM:         orDefault(f.BPM, DefaultBPM),
+		Division:    DefaultDivision,
+		Swing:       f.Swing,
+		Accents:     f.Accents,
+		AccentPitch: orDefault(f.AccentPitch, DefaultAccentPitch),
+		PauseRest:   parseRest(errs, "rhythm.rest.pause", f.Rest.Pause, DefaultPauseRest),
+		EndRest:     parseRest(errs, "rhythm.rest.end", f.Rest.End, DefaultEndRest),
+		CountIn:     f.CountIn,
+		BeatVolume:  orDefault(f.BeatVolume, DefaultBeatVolume),
 	}
 	if f.Division != nil {
 		r.Division = *f.Division
@@ -146,6 +153,7 @@ func (r *Rhythm) validate(errs *fieldErrors, v *Voice) {
 	for i, a := range r.Accents {
 		errs.inRange(fmt.Sprintf("rhythm.accents[%d]", i), a, 0, 1)
 	}
+	errs.inRange("rhythm.accentPitch", r.AccentPitch, 0, 12)
 	if r.PauseRest > RestBar {
 		errs.add("rhythm.rest.pause", "unknown rest %d", r.PauseRest)
 	}

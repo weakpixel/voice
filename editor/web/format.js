@@ -11,7 +11,7 @@ export const KEY_ORDER = {
   "": ["version", "name", "language", "baseNote", "pitch", "variation", "velocity", "length", "speed", "pan", "motifVolume", "breath", "seed", "instruments", "percussion", "rhythm"],
   instruments: ["vowel", "sonorant", "fricative", "plosive", "motif"],
   instrument: ["base", "note", "wave", "pulseWidth", "detune", "unison", "spread", "layers", "glideFrom", "glideMs", "attackMs", "decayMs", "sustain", "releaseMs", "filter", "cutoff", "resonance", "vibratoRate", "vibratoDepth", "vibratoDelayMs", "reverb", "gain", "sample", "root", "loop", "loopStart", "loopEnd"],
-  rhythm: ["bpm", "division", "swing", "accents", "rest", "countIn", "beatVolume", "beat"],
+  rhythm: ["bpm", "division", "swing", "accents", "accentPitch", "rest", "countIn", "beatVolume", "beat"],
   "rhythm.rest": ["pause", "end"],
 };
 

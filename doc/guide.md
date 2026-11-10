@@ -156,7 +156,7 @@ Symbols must be unique across phonemes and punctuation, compared case-insensitiv
 
 ## Voices (`*.voice.json`)
 
-A voice is how one character speaks. Ten starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"`, `"divine"`, `"flow"`, `"verse"`, `"warrior"`, `"robot"`, `"ghost"` and `"elder"`:
+A voice is how one character speaks. Eleven starter voices are built in, `voice.Preset("soft")`, `"chirpy"`, `"gruff"`, `"divine"`, `"flow"`, `"verse"`, `"warrior"`, `"robot"`, `"ghost"`, `"elder"` and `"haughty"`:
 
 | Voice | Sound |
 | --- | --- |
@@ -170,6 +170,7 @@ A voice is how one character speaks. Ten starter voices are built in, `voice.Pre
 | `robot` | monotone (no pitch variation): thin buzzing square blips with a fifth on top and a fast metallic vibrato, sharp hiss and zaps |
 | `ghost` | high, slow and floating: sine notes that slide up into place, a wavering vibrato, breathy whispers, everything deep in the reverb |
 | `elder` | low and slow with a shaky voice: soft triangle blips with a wide, fast tremble, a slight sag at each note's start, a warm pad underneath |
+| `haughty` | a disdainful laugh, made for lines like `HAHAHA`: each "ha" is a breathy burst and a nasal square blip that slides down into its note, on an even 132 bpm grid of eighths, and each burst is quieter and 1.5 semitones lower than the one before (falling accents with a large `accentPitch`) |
 
 ```json
 {
@@ -248,6 +249,7 @@ Each entry is an instrument (the fields above) plus `note`, the note every hit p
 | `division` | grid steps per beat: 2 (eighths), 3 (triplets) or 4 (sixteenths, the default). A bar has 4 beats |
 | `swing` | delays every second step by this share of a step, 0 to 0.5 |
 | `accents` | strength 0 to 1 of each step of a bar (4 × `division` values); left out, beats 1 and 3 are strong (1), 2 and 4 medium (0.6), the steps between them none |
+| `accentPitch` | semitones a step of accent 1 raises its syllable, 0 to 12 (default 2); falling accents with a large value step a line down |
 | `rest` | where the voice starts again after punctuation: `none`, `step` (the punctuation's pause rounded to steps), `beat` (the next beat) or `bar` (the next bar). `pause` is for punctuation without an end rule (`,` `;` `:` `...`, default `beat`), `end` for punctuation with one (`.` `?` `!`, default `bar`). Every rest but `none` leaves at least one silent step |
 | `countIn` | bars of beat before the voice starts, 0 to 2 |
 | `beatVolume` | velocity of a percussion hit, 0 to 1 (default 0.8) |
@@ -279,7 +281,7 @@ A voice with a `rhythm` is timed on its beat grid instead (contours and the moti
 - Phonemes are grouped into syllables. Within a word, each vowel is a syllable's nucleus; of the consonants between two vowels, the last one starts the next syllable and the others end the previous one. A word without a vowel is one syllable.
 - Each syllable takes whole steps: its natural length (its phonemes' slots at `speed`) rounded to the nearest step, at least one. So `speed` still decides how dense the flow is. Its nucleus starts on a step; its leading consonants come just before it (at most half a step, less with swing); its nucleus and trailing consonants fill the rest of its steps.
 - Whitespace takes no time, so words flow together. Punctuation rests as `rest` says.
-- The accent of the nucleus's step makes the syllable up to 40 % louder and 2 semitones higher.
+- The accent of the nucleus's step makes the syllable up to 40 % louder and up to `accentPitch` semitones higher (an accent of 0.5 adds half of it).
 - The first nucleus sits on the bar line after the count-in (or, without a count-in, right after its leading consonants). The beat plays from the count-in to the end of the bar in which the voice's last sound ends, and `Duration` covers it.
 - Text is revealed when its sound starts, so nothing shows during the count-in.
 - The ending works as above in whole steps: the last syllable takes 1.5 times its steps (rounded), and the breath ends on the first beat at least `breath` after the voice.

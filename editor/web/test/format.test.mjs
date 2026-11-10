@@ -7,7 +7,7 @@ const presets = new URL("../../../presets/", import.meta.url);
 const starters = readdirSync(presets).filter((f) => f.endsWith(".voice.json"));
 
 test("formatting a starter voice reproduces its file", () => {
-  assert.equal(starters.length, 10);
+  assert.equal(starters.length, 11);
   for (const f of starters) {
     const text = readFileSync(new URL(f, presets), "utf8");
     assert.equal(format(JSON.parse(text)), text, f);
