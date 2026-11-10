@@ -29,7 +29,7 @@ async function main() {
     await page.waitForSelector("body[data-ready=true]", { timeout: 30000 });
 
     const names = await page.$$eval("#starter option", (os) => os.map((o) => o.value).filter(Boolean));
-    assert.deepEqual(names, ["soft", "chirpy", "gruff", "divine", "flow", "verse", "warrior", "robot", "ghost", "elder"]);
+    assert.deepEqual(names, ["soft", "chirpy", "gruff", "divine", "flow", "verse", "warrior", "robot", "ghost", "elder", "haughty"]);
 
     const line = "Hello there, traveler! Are you lost?";
     for (const name of names) {

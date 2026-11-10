@@ -16,7 +16,7 @@ func rhythmVoice(t *testing.T) *Voice {
 	kick, _ := BuiltinPercussion("kick")
 	hat, _ := BuiltinPercussion("hat")
 	v.Percussion = []Percussion{hat, kick}
-	v.Rhythm = &Rhythm{BPM: 120, Division: 4, PauseRest: RestBeat, EndRest: RestBar, BeatVolume: 0.8,
+	v.Rhythm = &Rhythm{BPM: 120, Division: 4, PauseRest: RestBeat, EndRest: RestBar, BeatVolume: 0.8, AccentPitch: DefaultAccentPitch,
 		Beat: []BeatTrack{{"hat", "x.x.x.x.x.x.x.x."}, {"kick", "x...x...x...x..."}}}
 	if err := v.Validate(); err != nil {
 		t.Fatal(err)
@@ -108,6 +108,37 @@ func TestRhythmAccents(t *testing.T) {
 	}
 	if strong == 0 || weak == 0 || strong <= weak*1.2 {
 		t.Errorf("velocity on beat 1 %g, off-beat %g, want beat 1 clearly louder", strong, weak)
+	}
+}
+
+// TestRhythmAccentPitch checks that AccentPitch sets how far an accent
+// raises a syllable: falling accents step a line down.
+func TestRhythmAccentPitch(t *testing.T) {
+	v := rhythmVoice(t)
+	v.Speed = 8 // a "ta" is about one step
+	v.Rhythm.Accents = []float32{1, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	for _, ap := range []float32{0, 2, 8} {
+		v.Rhythm.AccentPitch = ap
+		vowels := notesOf(ComposeText(v, DefaultLanguage(), "ta ta ta ta ta ta ta ta"), InstVowel)
+		var plain float32 // the note on a step without accent
+		for _, n := range vowels {
+			if k, _ := steps(n.On - vowels[0].On); k%16 != 0 && k%16 != 4 {
+				plain = n.Note
+			}
+		}
+		checked := 0
+		for _, n := range vowels { // no punctuation: no contour shifts a note
+			k, _ := steps(n.On - vowels[0].On)
+			if a := v.Rhythm.Accents[k%16]; a > 0 {
+				if d := n.Note - plain; d != ap*a {
+					t.Errorf("accentPitch %g: step %d is %g semitones above a plain step, want %g", ap, k, d, ap*a)
+				}
+				checked++
+			}
+		}
+		if checked < 2 {
+			t.Fatalf("only %d accented syllables", checked)
+		}
 	}
 }
 
