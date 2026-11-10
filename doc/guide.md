@@ -32,8 +32,39 @@ Each speaker needs its own owner on the stream, and the stream needs that owner'
 - `Done()` is true when no line is playing: before the first `Say`, and after a line completed, was skipped or stopped. A line completes at its timeline's `Duration`: after its last sound and the voice's `breath`, so the motif can ring out; a final pause does not delay it. The text is complete earlier, when its last token starts.
 - `Events()` returns what happened since the previous `Update` began: the events of `Say`, `Skip`, `Stop` and `Close` calls since then and those of the `Update` itself. Each `Event` has its `Kind` and the `Line` number (1 for the first `Say`). The slice is reused and valid until the next `Update`.
 - `Timeline()` is the current line's composed [timeline](#compose).
+- `SayOptions.Spans` give parts of the line to [other voices](#other-voices-inside-a-line), each on its own owner. While the line plays, the speaker also plays on those owners, and every exit path (`Skip`, `Stop`, `Pause`, `Close`, a new `Say`) releases them too, so do not use them for another line at the same time. The stream needs their instruments (`SetVoice`) first.
 
-Every note the speaker starts ends with a `NoteOff` or a `Release` of its owner.
+Every note the speaker starts ends with a `NoteOff` or a `Release` of its owner (or of a span's owner).
+
+## Other voices inside a line
+
+Words and phrases of a line can be spoken by another voice, without splitting the line: it keeps one reveal, one motif, one ending and one `Completed`. The line is written with markup:
+
+```text
+Grandpa always said {gruff}keep your boots dry{/}, and I never listened.
+He growled {gruff~}keep your boots dry{/} at me.
+```
+
+- `{name}` opens a span, `{/}` closes it (`{/name}` too, if the name matches). `{name~}` is an impression: the line's voice imitates the other one.
+- `{{` is a literal `{`; a `}` outside a tag is literal.
+- A name uses `a-z`, `0-9`, `_`, `.` and `-`. Names starting with `#` are reserved for other tags. Spans do not nest and are not empty.
+
+`voice.ParseMarkup(src)` returns the text to show and speak (tags removed), the spans (`MarkupSpan`: `Start`, `End` byte offsets into that text, `Name`, `Impression`) and every problem together (`*MarkupError` with the byte offset in `src`). The text and the well-formed spans come back also on error. What a name means is the caller's: `voiceplay` and `say` take starter voices and voice files.
+
+```go
+text, ms, err := voice.ParseMarkup(src)
+spans := []voice.VoiceSpan{{Start: ms[0].Start, End: ms[0].End, Voice: gruff, Owner: 2}}
+stream.SetVoice(2, gruff, nil)
+sp.Say(soft, text, voice.SayOptions{Spans: spans})
+```
+
+How a span sounds (`VoiceSpan`):
+
+- A token belongs to the span its first byte is in, so a span never splits a phoneme; a span may start or end inside a word.
+- The span's voice decides the sound of its phonemes: its speed (the length of their slots), `length`, base note and pitch, variation, velocity and instruments (through the span's owner).
+- The line's voice keeps the line: its pan (for every note, so the sound stays with the speaker), the clauses and their contours, the motif, the ending and the breath, a rhythm's grid and percussion, and the random seed. So the line's parts before a span sound exactly as without it, and a span of the line's own voice changes nothing.
+- A switch takes no time and has no glide: the span's first slot starts where the previous one ends, in the span's register. An impression keeps the span voice's sound and timing but moves the register only halfway from the line's voice to it.
+- On a rhythmic line, the span's syllables sit on the line's grid (their step count from the span voice's speed). A span voice's own rhythm and percussion are not used.
 
 ## Dialogues (`*.dialogue.json`, package `dialogue`)
 
@@ -272,7 +303,8 @@ A `Speaker` does this for you; use `Compose` directly to render offline or to dr
 - The motif is two to four long soft notes on the `motif` instrument, an octave below the voice: one per clause (a single clause is split in two, more than four clauses are grouped into four). Each motif note moves from the previous one: down after a fall, up after a rise or accent (louder too), a small step otherwise.
 - The line ends the way speech does: its last syllable (the last vowel and the consonants after it) takes 1.5 times as long and its notes hold 0.15 more of their slot, the last syllable before each other `.` `?` `!` takes 1.25 times as long, and the last three phonemes play at 90 %, 80 % and 70 % of their velocity.
 - The motif's last note rings on for the voice's `breath` after the last phoneme, then its release fades it.
-- `Duration` is the end of the last phoneme plus the `breath`; a final pause does not count. The last reveal shows the whole text, at the latest when the last phoneme ends.
+- `Duration` is the end of the last phoneme plus the `breath`; a final pause does not count.
+- `ComposeOptions.Spans` give parts of the text to [other voices](#other-voices-inside-a-line); each note's `Span` says which voice plays it (0 for the line's voice, `i` for `Spans[i-1]`). Spans that are not sorted, overlap, lie outside the text or have no voice panic. The last reveal shows the whole text, at the latest when the last phoneme ends.
 
 A voice with a `rhythm` is timed on its beat grid instead (contours and the motif stay as above):
 
@@ -365,6 +397,7 @@ A sample sounds at its own pitch for the note `Root` and is resampled (linear in
 go run ./cmd/voiceplay -voice soft -o build/line.wav "Hello there, traveler!"
 go run ./cmd/voiceplay -voice my.voice.json -lang my.lang.json "Kel thae, varan."
 go run ./cmd/voiceplay -voice flow -o build/flow.wav "Yo, listen up. I came from the hills, with nothing but skills."
+go run ./cmd/voiceplay -voice soft -o build/quote.wav "He said {gruff}stay back{/} and left."
 go run ./cmd/voiceplay -patches -voice gruff -o build/gruff-patches.wav
 go run ./cmd/voiceplay -patches -o build/patches.wav
 ```
@@ -376,8 +409,11 @@ go run ./cmd/voiceplay -patches -o build/patches.wav
 | `-patches` | instead of a line, play a short rising phrase on each instrument of the voice and four hits on each percussion sound; without `-voice`, on each built-in test patch of the synthesizer |
 | `-o` | output WAV (default `build/line.wav`, or `build/patches.wav` with `-patches`) |
 | `-rate` | sample rate (default 48000) |
+| `-plain` | speak the text as written, without [markup](#other-voices-inside-a-line) |
 
-Exit codes: 0 success, 1 failure, 2 usage error.
+The line may use [markup](#other-voices-inside-a-line): a tag names a starter voice or a `*.voice.json` file, like `-voice`. The other voices play on owners 2, 3, … in order of first use.
+
+Exit codes: 0 success, 1 failure (also a voice a tag names that does not load), 2 usage error (also bad markup).
 
 ## say
 

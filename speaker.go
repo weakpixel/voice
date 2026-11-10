@@ -19,6 +19,12 @@ type SayOptions struct {
 	// line keeps the music's tempo.
 	Clock    *Clock
 	MuteBeat bool
+	// Spans are parts of the text other voices speak, each on its own
+	// Owner (see [VoiceSpan]). While the line plays the speaker also plays
+	// on these owners and releases them on every exit path, so do not use
+	// them for another line at the same time. The stream needs their
+	// instruments (SetVoice) before the line starts.
+	Spans []VoiceSpan
 }
 
 // EventKind is what happened to a line.
@@ -60,7 +66,8 @@ type sinkEvent struct {
 // Drive it from one goroutine: Say a line, call Update with the frame time
 // every frame, show text[:Revealed()], and read Events. The reveal depends
 // only on the accumulated time, not on how it was split into updates.
-// Every note it starts is ended by a NoteOff or by Release(owner): Skip,
+// Every note it starts is ended by a NoteOff or by Release(owner) (and of
+// the owners of the line's spans, see [SayOptions].Spans): Skip,
 // Stop, Pause, Close and a Say over a running line release the owner's
 // notes. Steady-state Update allocates nothing; Say allocates.
 type Speaker struct {
@@ -68,6 +75,7 @@ type Speaker struct {
 	owner Owner
 
 	tokens   []Phoneme
+	owners   []Owner // owners[0] is the speaker's, owners[i] that of span i
 	tl       Timeline
 	schedule []sinkEvent
 	next     int // next schedule entry to send
@@ -104,7 +112,11 @@ func (s *Speaker) Say(v *Voice, text string, opts SayOptions) {
 		lang = DefaultLanguage()
 	}
 	s.tokens = AppendParse(s.tokens[:0], lang, text)
-	s.tl = ComposeWith(v, text, s.tokens, ComposeOptions{Clock: opts.Clock, MuteBeat: opts.MuteBeat})
+	s.tl = ComposeWith(v, text, s.tokens, ComposeOptions{Clock: opts.Clock, MuteBeat: opts.MuteBeat, Spans: opts.Spans})
+	s.owners = append(s.owners[:0], s.owner)
+	for _, sp := range opts.Spans {
+		s.owners = append(s.owners, sp.Owner)
+	}
 	s.schedule = s.schedule[:0]
 	for _, n := range s.tl.Notes {
 		if opts.Instant && n.Instrument != InstMotif {
@@ -168,10 +180,11 @@ func (s *Speaker) Update(dt time.Duration) {
 func (s *Speaker) send() {
 	for ; s.next < len(s.schedule) && s.schedule[s.next].at <= s.t; s.next++ {
 		e := &s.schedule[s.next]
+		owner := s.owners[e.note.Span]
 		if e.on {
-			s.sink.NoteOn(s.owner, e.note.Instrument, e.note.Note, e.note.Velocity, e.note.Pan)
+			s.sink.NoteOn(owner, e.note.Instrument, e.note.Note, e.note.Velocity, e.note.Pan)
 		} else {
-			s.sink.NoteOff(s.owner, e.note.Instrument, e.note.Note)
+			s.sink.NoteOff(owner, e.note.Instrument, e.note.Note)
 		}
 	}
 	for ; s.reveal < len(s.tl.Reveals) && s.tl.Reveals[s.reveal].At <= s.t; s.reveal++ {
@@ -185,12 +198,22 @@ func (s *Speaker) end(kind EventKind, revealAll bool) {
 	if !s.active {
 		return
 	}
-	s.sink.Release(s.owner)
+	s.release()
 	s.active, s.paused = false, false
 	if revealAll {
 		s.revealed = s.tl.TextLen
 	}
 	s.events = append(s.events, Event{kind, s.line})
+}
+
+// release releases the speaker's owner and every other owner of the line's
+// spans (each once).
+func (s *Speaker) release() {
+	for i, o := range s.owners {
+		if !slices.Contains(s.owners[:i], o) {
+			s.sink.Release(o)
+		}
+	}
 }
 
 // Skip ends the running line at once: all text is shown, its notes are
@@ -206,7 +229,7 @@ func (s *Speaker) Stop() { s.end(Stopped, false) }
 func (s *Speaker) Pause() {
 	if s.active && !s.paused {
 		s.paused = true
-		s.sink.Release(s.owner)
+		s.release()
 	}
 }
 

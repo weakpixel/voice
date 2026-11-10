@@ -1,6 +1,6 @@
 # voice
 
-A Go library that turns dialogue text into musical gibberish for games. Text is split into phonemes of a configurable fictional language, each phoneme plays a short blip on a small built-in synthesizer, a quiet motif follows the punctuation, and the caller learns how much text to reveal at every moment. A voice can also speak on a beat, like a rapper, over its own percussion or in time with the game's music.
+A Go library that turns dialogue text into musical gibberish for games. Text is split into phonemes of a configurable fictional language, each phoneme plays a short blip on a small built-in synthesizer, a quiet motif follows the punctuation, and the caller learns how much text to reveal at every moment. A voice can also speak on a beat, like a rapper, over its own percussion or in time with the game's music. Words inside a line can be given to another voice with markup: `He said {gruff}stay back{/}.`
 
 It works in any Go program, with any audio output, natively and in js/wasm, and renders offline to WAV. The core module has no dependencies. MIT licensed.
 
@@ -10,6 +10,7 @@ Hear the starter voices:
 ```bash
 go run ./cmd/voiceplay -voice chirpy -o build/line.wav "Hello there, traveler!"
 go run ./cmd/voiceplay -voice flow -o build/flow.wav "Yo, listen up. I came from the hills, with nothing but skills."
+go run ./cmd/voiceplay -voice soft -o build/quote.wav "Grandpa said {gruff}keep your boots dry{/}."
 cd ebiten && go run ./cmd/say -voice chirpy "Hello there, traveler!"   # straight to the speakers
 ```
 
