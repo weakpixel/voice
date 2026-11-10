@@ -117,3 +117,24 @@ func TestUsage(t *testing.T) {
 		t.Errorf("unknown voice: exit %d, %s", code, stderr.String())
 	}
 }
+
+func TestMarkupLine(t *testing.T) {
+	dir := t.TempDir()
+	out := runOK(t, "-voice", "soft", "-rate", "22050", "-o", filepath.Join(dir, "a.wav"), "He said {gruff}stay back{/} and {gruff~}left{/}.")
+	if !strings.Contains(out, "voice soft") {
+		t.Errorf("stdout %q", out)
+	}
+	left, _, _, err := render(options{voice: "soft", rate: 22050, text: "He said stay back.", spans: []voice.MarkupSpan{{Start: 8, End: 17, Name: "gruff"}}})
+	if err != nil || peak(left) < 0.1 {
+		t.Errorf("peak %g, %v", peak(left), err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"-o", filepath.Join(dir, "b.wav"), "a {gruff}b"}, &stdout, &stderr); code != exitUsage || !strings.Contains(stderr.String(), "not closed") {
+		t.Errorf("bad markup: exit %d, %s", code, stderr.String())
+	}
+	stderr.Reset()
+	if code := run([]string{"-o", filepath.Join(dir, "c.wav"), "a {nobody}b{/}"}, &stdout, &stderr); code != exitFailure || !strings.Contains(stderr.String(), "{nobody}") {
+		t.Errorf("unknown voice: exit %d, %s", code, stderr.String())
+	}
+	runOK(t, "-plain", "-o", filepath.Join(dir, "d.wav"), "a {gruff}b")
+}

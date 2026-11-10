@@ -17,6 +17,8 @@ type NoteData struct {
 	Inst       int     `json:"inst"`
 	Note       float32 `json:"note"`
 	Velocity   float32 `json:"velocity"`
+	// Span is 0 for the line's voice, i for the line's i-th voice span.
+	Span int `json:"span,omitempty"`
 }
 
 // RevealData is a timeline reveal for the page, its time in seconds.
@@ -31,6 +33,10 @@ type TimelineData struct {
 	Reveals  []RevealData `json:"reveals"`
 	Duration float64      `json:"duration"`
 	TextLen  int          `json:"textLen"`
+	// Text and Problems are set for a line said with voice markup: the
+	// text without the markup, and the markup's problems.
+	Text     string    `json:"text,omitempty"`
+	Problems []Problem `json:"problems,omitempty"`
 }
 
 // Data converts tl, a line of v, for the page.
@@ -42,7 +48,7 @@ func Data(v *voice.Voice, tl voice.Timeline) TimelineData {
 		TextLen:  tl.TextLen,
 	}
 	for i, n := range tl.Notes {
-		d.Notes[i] = NoteData{On: sec(n.On), Off: sec(n.Off), Instrument: instName(v, n.Instrument), Inst: int(n.Instrument), Note: n.Note, Velocity: n.Velocity}
+		d.Notes[i] = NoteData{On: sec(n.On), Off: sec(n.Off), Instrument: instName(v, n.Instrument), Inst: int(n.Instrument), Note: n.Note, Velocity: n.Velocity, Span: n.Span}
 	}
 	for i, r := range tl.Reveals {
 		d.Reveals[i] = RevealData{At: sec(r.At), Offset: r.Offset}

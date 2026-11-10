@@ -13,6 +13,7 @@ import { encodeShare, decodeShare } from "./share.js";
 import { initDialogue } from "./dialogue.js";
 import { initTheme } from "./theme.js";
 import { saveVoice, allVoices } from "./workspace.js";
+import { spansOf } from "./dialogueEdit.js";
 
 const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const docArea = /** @type {HTMLTextAreaElement} */ ($("doc"));
@@ -276,8 +277,34 @@ async function openVoiceForEditing(ref) {
   return false;
 }
 
-/** Says text with the voice in voiceText on the editor's own preview (the Dialogue mode's line buttons). */
-async function speakPreview(voiceText, text, opts) {
+/**
+ * Sets the voices a line's markup names ({name}…{/}): guests maps a name to
+ * a voice document; other names are starter voices or workspace voice
+ * files. A name with no voice is listed by the library as a problem.
+ * @param {string} text @param {Map<string, string>} [guests]
+ */
+async function setLineGuests(text, guests) {
+  api.clearGuests();
+  const names = [...new Set(spansOf(text).map((s) => s.name))];
+  if (!names.length) return;
+  const files = guests ?? (names.every((n) => starterNames.includes(n)) ? new Map() : await allVoices());
+  for (const n of names) {
+    let err = "";
+    if (files.has(n)) err = api.setGuest(n, files.get(n));
+    else if (!guests && starterNames.includes(n)) err = api.setGuest(n, "");
+    if (err) toast(`The voice {${n}} has problems: ${err}`);
+  }
+}
+
+/** Shows the text of a line that was said: without its markup, and its first markup problem. */
+function lineSaid(tl, text) {
+  lineText = tl.text ?? text;
+  lineBytes = utf8(lineText);
+  if (tl.problems?.length) toast(tl.problems[0].message);
+}
+
+/** Says text with the voice in voiceText on the editor's own preview (the Dialogue mode's line buttons); guests are the voices its markup names. */
+async function speakPreview(voiceText, text, opts, guests = new Map()) {
   if (!api) return;
   if (!(await audioStarted())) {
     toast(api.audioError() || "Audio did not start. Click the page and try again.");
@@ -288,10 +315,10 @@ async function speakPreview(voiceText, text, opts) {
     toast(`That voice has problems: ${r.problems?.[0]?.message ?? "see the Voice mode"}`);
     return;
   }
-  lineText = text;
-  lineBytes = utf8(text);
+  await setLineGuests(text, guests);
   const tl = api.say(text, { speed: opts.speed, instant: opts.instant });
   if (!tl) return;
+  lineSaid(tl, text);
   auditioning = false;
   roll.setTimeline(tl);
   playing = true;
@@ -361,10 +388,10 @@ async function play() {
     toast(api.audioError() || "Audio did not start. Click the page and try again.");
     return;
   }
-  lineText = lineInput.value;
-  lineBytes = utf8(lineText);
-  const tl = api.say(lineText, sayOptions());
+  await setLineGuests(lineInput.value);
+  const tl = api.say(lineInput.value, sayOptions());
   if (!tl) return;
+  lineSaid(tl, lineInput.value);
   auditioning = false;
   roll.setTimeline(tl);
   $("events").textContent = "";
@@ -503,6 +530,8 @@ function renderNow() {
   const job = ++renderJob;
   renderingKey = key;
   renderPromise = (async () => {
+    await setLineGuests(lineInput.value);
+    if (job !== renderJob) return false;
     if (!api.renderStart(lineInput.value, sayOptions())) return false;
     for (;;) {
       const budget = playing ? 3 : 10; // ms per frame

@@ -14,6 +14,9 @@ type Note struct {
 	Note       float32 // semitones, MIDI numbering
 	Velocity   float32 // 0 to 1
 	Pan        float32 // -1 to 1
+	// Span says which voice plays the note: 0 for the line's voice, i for
+	// ComposeOptions.Spans[i-1]. A [Speaker] plays it on that span's owner.
+	Span int `json:",omitempty"`
 }
 
 // Reveal says that from At on, the text up to byte Offset is shown.
@@ -50,6 +53,9 @@ type ComposeOptions struct {
 	// MuteBeat leaves out the voice's percussion, for example when the
 	// game's music already has a beat.
 	MuteBeat bool
+	// Spans are parts of the text that other voices speak (see
+	// [VoiceSpan]): sorted by Start, not overlapping, inside the text.
+	Spans []VoiceSpan
 }
 
 // Compose turns the parsed tokens of text into a timeline for voice v; it
@@ -73,12 +79,19 @@ func Compose(v *Voice, text string, tokens []Phoneme) Timeline {
 // on a beat grid instead and adds its percussion (see the guide's rhythm
 // section). Out-of-range voice fields are clamped; beat patterns that do
 // not fit the rhythm are left out.
+//
+// Tokens that start inside one of opts.Spans are spoken by that span's
+// voice; the line's structure stays v's (see [VoiceSpan]). It panics if
+// the spans are not sorted, overlap, lie outside the text or have no voice.
 func ComposeWith(v *Voice, text string, tokens []Phoneme, opts ComposeOptions) Timeline {
+	checkSpans(opts.Spans, len(text))
 	c := composer{
-		v:    v,
-		rng:  rand.New(rand.NewPCG(v.Seed^hashText(text), 0x9e3779b97f4a7c15)),
-		beat: 1 / float64(clampF(v.Speed, 1, 60)),
+		v:     v,
+		rng:   rand.New(rand.NewPCG(v.Seed^hashText(text), 0x9e3779b97f4a7c15)),
+		beat:  1 / float64(clampF(v.Speed, 1, 60)),
+		spans: opts.Spans,
 	}
+	c.tokSpan = tokenSpans(tokens, opts.Spans)
 	c.clauses = findClauses(tokens)
 	if v.Rhythm != nil {
 		c.rhythmic(tokens, opts)
@@ -158,8 +171,10 @@ func findClauses(tokens []Phoneme) []clause {
 type composer struct {
 	v       *Voice
 	rng     *rand.Rand
-	beat    float64 // seconds
+	beat    float64 // seconds, of the line's voice
 	clauses []clause
+	spans   []VoiceSpan
+	tokSpan []int // per token: 0 for the line's voice, i for spans[i-1]; nil without spans
 	tl      Timeline
 
 	voiced   bool                  // the line has at least one phoneme note
@@ -181,7 +196,6 @@ const (
 )
 
 func (c *composer) phonemes(tokens []Phoneme) {
-	gate := float64(clampF(c.v.Length, 0.05, 1))
 	end := c.lineEnding(tokens)
 	t := 0.0
 	ci := 0
@@ -192,15 +206,15 @@ func (c *composer) phonemes(tokens []Phoneme) {
 		c.reveal(t, tok.End)
 		switch tok.Kind {
 		case TokenPause:
-			t += c.beat * float64(tok.Length)
+			t += c.beatAt(i) * float64(tok.Length)
 		case TokenPhoneme:
 			cl := &c.clauses[ci]
 			if i == cl.first {
 				cl.start = t
 			}
 			pitch, vel := c.tone(tokens, i, cl)
-			slot := c.beat * float64(tok.Length) * end.stretch[i]
-			c.note(tok, t, slot*min(1, gate+end.gate[i]), pitch, vel*end.fade[i])
+			slot := c.beatAt(i) * float64(tok.Length) * end.stretch[i]
+			c.note(i, tok, t, slot*min(1, c.gateAt(i)+end.gate[i]), pitch, vel*end.fade[i])
 			t += slot
 			cl.end = t
 			c.tl.Duration = seconds(t)
@@ -211,12 +225,12 @@ func (c *composer) phonemes(tokens []Phoneme) {
 
 // tone returns the pitch and velocity of phoneme token i of clause cl: the
 // voice's base, the phoneme's pitch and loudness, a random offset within
-// the variation, and the clause's contour. It draws one random number, so
-// the order of calls decides the line.
+// the variation, and the clause's contour, all of the token's voice. It
+// draws one random number whatever the voice, so the order of calls decides
+// the line and a span does not change the draws of the tokens around it.
 func (c *composer) tone(tokens []Phoneme, i int, cl *clause) (pitch, vel float32) {
-	v, tok := c.v, &tokens[i]
-	base := clampF(v.BaseNote, 24, 108) + clampF(v.Pitch, -24, 24)
-	pitch = base + tok.Pitch + clampF(v.Variation, 0, 12)*(2*c.rng.Float32()-1)
+	v, tok := c.voiceAt(i), &tokens[i]
+	pitch = c.baseAt(i) + tok.Pitch + clampF(v.Variation, 0, 12)*(2*c.rng.Float32()-1)
 	vel = clampF(v.Velocity, 0, 1) * tok.Velocity
 	if cl.contour == ContourAccent {
 		pitch += accentPitch
@@ -230,11 +244,13 @@ func (c *composer) tone(tokens []Phoneme, i int, cl *clause) (pitch, vel float32
 	return pitch, vel
 }
 
-// note adds the note of phoneme tok from t for length seconds.
-func (c *composer) note(tok Phoneme, t, length float64, pitch, vel float32) {
+// note adds the note of phoneme token i from t for length seconds. Its pan
+// is the line's voice's, also in a span: the sound stays with the speaker.
+func (c *composer) note(i int, tok Phoneme, t, length float64, pitch, vel float32) {
 	c.tl.Notes = append(c.tl.Notes, Note{
 		On: seconds(t), Off: seconds(t + length), Instrument: tok.Category.Instrument(),
 		Note: pitch, Velocity: clampF(vel, 0, 1), Pan: clampF(c.v.Pan, -1, 1),
+		Span: c.spanAt(i),
 	})
 }
 

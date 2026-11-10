@@ -79,7 +79,6 @@ func (c *composer) rhythmic(tokens []Phoneme, opts ComposeOptions) {
 
 	accents := c.accents(r, g.barSteps)
 	accentPitch := clampF(r.AccentPitch, 0, 12)
-	gate := float64(clampF(c.v.Length, 0.05, 1))
 	end := c.lineEnding(tokens)
 	c.snap = func(t float64) float64 { return g.nextBeat(t) }
 	starts := make([]float64, len(tokens)) // when each phoneme token starts
@@ -111,7 +110,7 @@ func (c *composer) rhythmic(tokens []Phoneme, opts ComposeOptions) {
 				ci++
 			}
 			cl := &c.clauses[ci]
-			slot := c.beat * float64(tok.Length)
+			slot := c.beatAt(i) * float64(tok.Length)
 			if i < s.nucleus {
 				slot *= onsetScale
 			} else {
@@ -123,7 +122,7 @@ func (c *composer) rhythmic(tokens []Phoneme, opts ComposeOptions) {
 			pitch, vel := c.tone(tokens, i, cl)
 			pitch += accentPitch * a
 			vel *= 1 + rhythmAccentVelocity*a
-			c.note(tok, t, slot*min(1, gate+end.gate[i]), pitch, vel*end.fade[i])
+			c.note(i, tok, t, slot*min(1, c.gateAt(i)+end.gate[i]), pitch, vel*end.fade[i])
 			starts[i], ends[i] = t, t+slot
 			t += slot
 			cl.end = t
@@ -205,7 +204,7 @@ func (c *composer) splitWord(out []syllable, tokens []Phoneme, word []int) []syl
 		}
 		s := syllable{first: word[start], nucleus: word[v], last: word[end-1]}
 		for j := start; j < end; j++ {
-			d := c.beat * float64(tokens[word[j]].Length)
+			d := c.beatAt(word[j]) * float64(tokens[word[j]].Length)
 			if j < v {
 				s.onset += d
 			} else {

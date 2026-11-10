@@ -89,7 +89,8 @@ type voiceSpeaker struct {
 // Drive it from one goroutine: call Update with the frame time every frame,
 // Next on a click or key press, show Line().Text[:Revealed()], and read
 // Events. Every note it starts is ended: Next (skipping), Start, Pause, Stop
-// and Close release the notes of the speaker involved. Steady-state Update
+// and Close release the notes of the speaker involved, and those of the
+// speakers whose voices the line's spans use. Steady-state Update
 // allocates nothing; starting a line allocates.
 type Player struct {
 	script *Script
@@ -174,9 +175,23 @@ func (p *Player) say() {
 	if p.opts.Languages != nil {
 		lang = p.opts.Languages(vs.voice.Language)
 	}
-	vs.sp.Say(vs.voice, l.Text, voice.SayOptions{Language: lang, Speed: l.Speed, Instant: l.Instant})
+	vs.sp.Say(vs.voice, l.Text, voice.SayOptions{Language: lang, Speed: l.Speed, Instant: l.Instant, Spans: p.spans(l)})
 	p.phase = Speaking
 	p.emit(LineStarted)
+}
+
+// spans returns the voice spans of line l: each span's speaker's voice on
+// that speaker's owner. The line's speaker releases them with its own notes.
+func (p *Player) spans(l Line) []voice.VoiceSpan {
+	if len(l.Spans) == 0 {
+		return nil
+	}
+	out := make([]voice.VoiceSpan, len(l.Spans))
+	for i, s := range l.Spans {
+		g := p.script.SpeakerIndex(s.Speaker)
+		out[i] = voice.VoiceSpan{Start: s.Start, End: s.End, Voice: p.pv[g].voice, Owner: voice.Owner(g + 1), Impression: s.Impression}
+	}
+	return out
 }
 
 // lineDone moves a finished line to its hold.

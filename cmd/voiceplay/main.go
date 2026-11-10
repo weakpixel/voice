@@ -9,6 +9,10 @@
 // or a language file. -patches plays a short rising phrase on every
 // instrument of the voice (and four hits on each percussion sound), or,
 // without -voice, on every built-in test patch of the synthesizer.
+//
+// The line may give words to other voices with markup: "He said {gruff}stay
+// back{/} and left." A tag names a starter voice or a voice file, like
+// -voice; {name~} is an impression. -plain speaks the text as written.
 package main
 
 import (
@@ -41,9 +45,10 @@ func main() {
 
 type options struct {
 	voice, lang, out string
-	patches          bool
+	patches, plain   bool
 	rate             int
 	text             string
+	spans            []voice.MarkupSpan // other voices of the line, from its markup
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -55,6 +60,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&o.patches, "patches", false, "play a phrase on every instrument of the voice (or every built-in test patch without -voice)")
 	fs.StringVar(&o.out, "o", "", "output WAV file; default build/line.wav or build/patches.wav")
 	fs.IntVar(&o.rate, "rate", 48000, "sample rate in hertz")
+	fs.BoolVar(&o.plain, "plain", false, "speak the text as written, without {voice}…{/} markup")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, `usage: voiceplay [flags] "line of text"`)
 		fmt.Fprintln(stderr, "       voiceplay -patches [flags]")
@@ -68,6 +74,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "voiceplay: give either a line of text or -patches")
 		fs.Usage()
 		return exitUsage
+	}
+	if !o.plain && o.text != "" {
+		var err error
+		if o.text, o.spans, err = voice.ParseMarkup(o.text); err != nil {
+			fmt.Fprintln(stderr, "voiceplay:", err)
+			return exitUsage
+		}
 	}
 	if o.out == "" {
 		o.out = map[bool]string{false: "build/line.wav", true: "build/patches.wav"}[o.patches]
@@ -118,8 +131,35 @@ func render(o options) (left, right []float32, what string, err error) {
 			return nil, nil, "", err
 		}
 	}
-	n := r.speak(v, lang, o.text)
+	spans, err := guestSpans(s, o.spans)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	n := r.speak(v, lang, o.text, spans)
 	return r.left, r.right, fmt.Sprintf("voice %s, %d notes", v.Name, n), nil
+}
+
+// guestSpans loads the voices the markup names and sets their instruments
+// on owners 2, 3, … in order of first use.
+func guestSpans(s *synth.Stream, ms []voice.MarkupSpan) ([]voice.VoiceSpan, error) {
+	owners := map[string]voice.Owner{}
+	voices := map[string]*voice.Voice{}
+	var spans []voice.VoiceSpan
+	for _, m := range ms {
+		if _, ok := owners[m.Name]; !ok {
+			v, load, err := loadVoice(m.Name)
+			if err != nil {
+				return nil, fmt.Errorf("{%s}: %w", m.Name, err)
+			}
+			o := owner + 1 + voice.Owner(len(owners))
+			if err := s.SetVoice(o, v, load); err != nil {
+				return nil, fmt.Errorf("{%s}: %w", m.Name, err)
+			}
+			owners[m.Name], voices[m.Name] = o, v
+		}
+		spans = append(spans, voice.VoiceSpan{Start: m.Start, End: m.End, Voice: voices[m.Name], Owner: owners[m.Name], Impression: m.Impression})
+	}
+	return spans, nil
 }
 
 // loadVoice returns a starter voice by name, or a voice file with a loader
@@ -218,9 +258,9 @@ func (r *renderer) testPatches() error {
 
 // speak plays a line through a voice.Speaker, updating it every
 // millisecond the way a game loop would, and returns the number of notes.
-func (r *renderer) speak(v *voice.Voice, lang *voice.Language, text string) int {
+func (r *renderer) speak(v *voice.Voice, lang *voice.Language, text string, spans []voice.VoiceSpan) int {
 	sp := voice.NewSpeaker(r.s, owner)
-	sp.Say(v, text, voice.SayOptions{Language: lang})
+	sp.Say(v, text, voice.SayOptions{Language: lang, Spans: spans})
 	for !sp.Done() {
 		r.advance(time.Millisecond)
 		sp.Update(time.Millisecond)

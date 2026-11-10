@@ -10,6 +10,10 @@
 // the audio library under Ebiten's audio package, directly: Ebiten's audio
 // context opens the device only from a running game loop, which a command
 // line program does not have. Ctrl+C stops the line.
+//
+// As in voiceplay, the line may give words to other voices with markup
+// ("He said {gruff}stay back{/}."): a tag names a starter voice or a voice
+// file, {name~} is an impression, and -plain speaks the text as written.
 package main
 
 import (
@@ -22,6 +26,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -62,7 +67,9 @@ type options struct {
 	voice, lang string
 	rate        int
 	volume      float64
+	plain       bool
 	text        string
+	spans       []voice.MarkupSpan // other voices of the line, from its markup
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
@@ -87,6 +94,7 @@ func parse(args []string, stderr io.Writer) (options, bool) {
 	fs.StringVar(&o.lang, "lang", "", "a *.lang.json file; default the built-in language")
 	fs.IntVar(&o.rate, "rate", 48000, "sample rate in hertz")
 	fs.Float64Var(&o.volume, "volume", 1, "playback volume, 0 to 1")
+	fs.BoolVar(&o.plain, "plain", false, "speak the text as written, without {voice}…{/} markup")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, `usage: say [flags] "line of text"`)
 		fs.PrintDefaults()
@@ -99,6 +107,13 @@ func parse(args []string, stderr io.Writer) (options, bool) {
 		fmt.Fprintln(stderr, "say: give a line of text")
 		fs.Usage()
 		return o, false
+	}
+	if !o.plain {
+		var err error
+		if o.text, o.spans, err = voice.ParseMarkup(o.text); err != nil {
+			fmt.Fprintln(stderr, "say:", err)
+			return o, false
+		}
 	}
 	if o.volume < 0 || o.volume > 1 {
 		fmt.Fprintln(stderr, "say: -volume must be between 0 and 1")
@@ -123,10 +138,43 @@ func load(o options) (*voice.Voice, synth.SampleLoader, *voice.Language, error) 
 	return v, samples, lang, nil
 }
 
+// guest is a voice that the line's markup names, on its own owner.
+type guest struct {
+	name    string
+	voice   *voice.Voice
+	samples synth.SampleLoader
+	owner   voice.Owner
+}
+
+// loadGuests loads the voices the markup names, on owners 2, 3, … in order
+// of first use, and returns the voice spans of the line.
+func loadGuests(ms []voice.MarkupSpan) ([]guest, []voice.VoiceSpan, error) {
+	var guests []guest
+	var spans []voice.VoiceSpan
+	for _, m := range ms {
+		i := slices.IndexFunc(guests, func(g guest) bool { return g.name == m.Name })
+		if i < 0 {
+			v, samples, err := loadVoice(m.Name)
+			if err != nil {
+				return nil, nil, fmt.Errorf("{%s}: %w", m.Name, err)
+			}
+			guests = append(guests, guest{m.Name, v, samples, owner + 1 + voice.Owner(len(guests))})
+			i = len(guests) - 1
+		}
+		g := guests[i]
+		spans = append(spans, voice.VoiceSpan{Start: m.Start, End: m.End, Voice: g.voice, Owner: g.owner, Impression: m.Impression})
+	}
+	return guests, spans, nil
+}
+
 // say plays the line on the default audio device and returns once it has
 // been spoken and has rung out, or when ctx is cancelled.
 func say(ctx context.Context, o options, stdout io.Writer) error {
 	v, samples, lang, err := load(o)
+	if err != nil {
+		return err
+	}
+	guests, spans, err := loadGuests(o.spans)
 	if err != nil {
 		return err
 	}
@@ -136,6 +184,11 @@ func say(ctx context.Context, o options, stdout io.Writer) error {
 	}
 	if err := stream.SetVoice(owner, v, samples); err != nil {
 		return err
+	}
+	for _, g := range guests {
+		if err := stream.SetVoice(g.owner, g.voice, g.samples); err != nil {
+			return fmt.Errorf("{%s}: %w", g.name, err)
+		}
 	}
 	device, ready, err := oto.NewContext(&oto.NewContextOptions{
 		SampleRate:   o.rate,
@@ -161,7 +214,7 @@ func say(ctx context.Context, o options, stdout io.Writer) error {
 	player.Play()
 
 	sp := voice.NewSpeaker(stream, owner)
-	sp.Say(v, o.text, voice.SayOptions{Language: lang})
+	sp.Say(v, o.text, voice.SayOptions{Language: lang, Spans: spans})
 	shown := 0
 	t := time.NewTicker(tick)
 	defer t.Stop()

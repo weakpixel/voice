@@ -356,7 +356,7 @@ body[data-mode="dialogue"] .voice-only { display: none; }
 .speaker { grid-template-columns: 6em 1fr 1fr 5em auto auto; align-items: center; }
 .speaker .row-problem { grid-column: 1 / -1; }
 .speaker input, .speaker select, .line-main select, .line-main input { min-width: 0; font: inherit; }
-.line-main { display: grid; grid-template-columns: 9em 1fr auto auto auto auto auto; gap: 4px; align-items: center; }
+.line-main { display: grid; grid-template-columns: 9em 1fr auto auto auto auto auto auto; gap: 4px; align-items: center; }
 .line.current { outline: 2px solid var(--accent); }
 .speaker.bad, .line.bad { border-left-color: var(--error); }
 .row-problem { color: var(--error); font-size: 12px; }
@@ -366,8 +366,20 @@ body[data-mode="dialogue"] .voice-only { display: none; }
 .timing-fields input[type=number] { width: 5.5em; font: inherit; }
 .field-inline { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
 .icon-btn { min-width: 2em; }
+/* A line's text over its voice highlights: the input is transparent, the
+   layer behind it repeats the text with each span marked. */
+.text-wrap { position: relative; min-width: 0; display: grid; }
+.text-wrap > * { grid-area: 1 / 1; font: inherit; padding: 2px 4px; border: 1px solid transparent; white-space: pre; overflow: hidden; }
+.text-wrap input.text { background: transparent; border-color: var(--border); position: relative; }
+.text-marks { color: transparent; pointer-events: none; background: var(--panel, var(--bg)); border-radius: 2px; }
+.text-marks mark { color: transparent; background: color-mix(in srgb, var(--c) 30%, transparent); border-radius: 2px; }
+.text-marks mark.impression { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 30%, transparent) 0 4px, color-mix(in srgb, var(--c) 12%, transparent) 4px 8px); }
+.text-marks .tag { background: color-mix(in srgb, var(--muted) 18%, transparent); border-radius: 2px; }
+.voice-menu { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+.voice-menu button[style] { border-left: 4px solid var(--c); }
+.voice-menu .chosen { outline: 2px solid var(--accent); }
 @media (max-width: 700px) {
   .speaker { grid-template-columns: 1fr 1fr; }
   .line-main { grid-template-columns: 1fr auto auto auto; }
-  .line-main .text { grid-column: 1 / -1; order: 5; }
+  .line-main .text-wrap { grid-column: 1 / -1; order: 5; }
 }
