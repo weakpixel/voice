@@ -144,9 +144,26 @@ func (b *Box) Draw(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, "voice: "+b.voiceName(), 16, 8)
 }
 
-// voiceName is the name of the current speaker's voice.
+// voiceName is the name of the current speaker's voice, plus the voice of
+// the line's span that is being spoken ("chirpy + gruff").
 func (b *Box) voiceName() string {
-	ref := b.player.Speaker().Voice
+	name := b.refName(b.player.Speaker().Voice)
+	if b.player.Phase() != dialogue.Speaking {
+		return name
+	}
+	r := b.player.Revealed()
+	for _, s := range b.player.Line().Spans {
+		if s.Start < r && r <= s.End {
+			if i := b.script.SpeakerIndex(s.Speaker); i >= 0 {
+				return name + " + " + b.refName(b.script.Speakers[i].Voice)
+			}
+		}
+	}
+	return name
+}
+
+// refName is the name of the voice a speaker's voice reference loads.
+func (b *Box) refName(ref string) string {
 	if v := b.voices[ref]; v != nil && v.Name != "" {
 		return v.Name
 	}
