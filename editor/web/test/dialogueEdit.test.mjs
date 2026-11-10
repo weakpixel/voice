@@ -37,21 +37,22 @@ test("speakers: add takes an unused starter and a unique id; rename updates the 
 test("a speaker with lines is in use", () => {
   assert.ok(E.speakerUsed(village, "wren"));
   assert.ok(!E.speakerUsed(E.addSpeaker(village, STARTERS), "chirpy-2"));
-  assert.equal(E.removeSpeaker(village, 2).speakers.length, 2);
+  assert.equal(E.removeSpeaker(village, 2).speakers.length, 3);
 });
 
 test("lines: add after, take turns, move, remove", () => {
   assert.equal(E.nextSpeaker(village, 0), "bram");
-  assert.equal(E.nextSpeaker(village, 6), "wren"); // after the last speaker comes the first
+  assert.equal(E.nextSpeaker(village, 6), "laugh");
+  assert.equal(E.nextSpeaker(E.addLine(village, 0, "laugh"), 1), "wren"); // after the last speaker comes the first
   let d = E.addLine(village, 0, "bram");
   assert.deepEqual(d.lines[1], { speaker: "bram", text: "" });
-  assert.equal(d.lines.length, 10);
+  assert.equal(d.lines.length, 15);
   assert.equal(E.addLine(village, -1, "wren").lines[0].text, "");
   d = E.moveLine(village, 0, 1);
   assert.deepEqual([d.lines[0].speaker, d.lines[1].speaker], ["bram", "wren"]);
   assert.strictEqual(E.moveLine(village, 0, -1), village);
-  assert.strictEqual(E.moveLine(village, 8, 1), village);
-  assert.equal(E.removeLine(village, 0).lines.length, 8);
+  assert.strictEqual(E.moveLine(village, 13, 1), village);
+  assert.equal(E.removeLine(village, 0).lines.length, 13);
 });
 
 test("a line field at its default is left out of the file", () => {
