@@ -33,7 +33,7 @@ func TestLoadRhythm(t *testing.T) {
 	}
 	r := v.Rhythm
 	if r.BPM != 100 || r.Division != 2 || r.Swing != 0.2 || r.PauseRest != RestBeat || r.EndRest != RestStep ||
-		r.CountIn != 1 || r.BeatVolume != DefaultBeatVolume || len(r.Beat) != 3 || r.Beat[0].Sound != "boom" {
+		r.CountIn != 1 || r.BeatVolume != DefaultBeatVolume || r.AccentPitch != DefaultAccentPitch || len(r.Beat) != 3 || r.Beat[0].Sound != "boom" {
 		t.Errorf("rhythm = %+v", r)
 	}
 }
@@ -41,7 +41,7 @@ func TestLoadRhythm(t *testing.T) {
 func TestLoadRhythmErrors(t *testing.T) {
 	_, err := LoadVoice(strings.NewReader(`{"version": 0, "instruments": {"vowel": {}},
 		"percussion": {"a": {"base": "cowbell"}, "b": {"note": 200}, "c": {}, "d": {}, "e": {}, "f": {}, "g": {}, "h": {}, "i": {"bogus": 1}},
-		"rhythm": {"bpm": 20, "swing": 0.7, "accents": [1, 0], "rest": {"pause": "long"}, "countIn": 3, "beatVolume": 2,
+		"rhythm": {"bpm": 20, "swing": 0.7, "accents": [1, 0], "accentPitch": 13, "rest": {"pause": "long"}, "countIn": 3, "beatVolume": 2,
 			"beat": {"nope": "x...............", "b": "x..", "c": "x..o............"}}}`))
 	for _, w := range []string{
 		`percussion.a.base: "cowbell" is not a built-in sound`,
@@ -50,6 +50,7 @@ func TestLoadRhythmErrors(t *testing.T) {
 		"rhythm.bpm: 20 is outside",
 		"rhythm.swing: 0.7",
 		"rhythm.accents: 2 values, want 16",
+		"rhythm.accentPitch: 13 is outside",
 		`rhythm.rest.pause: "long" is not one of`,
 		"rhythm.countIn: 3",
 		"rhythm.beatVolume: 2",

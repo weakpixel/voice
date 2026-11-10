@@ -2,11 +2,9 @@ package voice
 
 import "math"
 
-// Accents raise a syllable by up to these amounts on a step of strength 1.
-const (
-	rhythmAccentVelocity = 0.4 // share of the velocity added
-	rhythmAccentPitch    = 2   // semitones added
-)
+// rhythmAccentVelocity is the share of the velocity an accent of strength 1
+// adds; the semitones it adds are the rhythm's AccentPitch.
+const rhythmAccentVelocity = 0.4
 
 // syllable is a vowel with the consonants around it, the unit a rhythmic
 // voice places on the grid.
@@ -80,6 +78,7 @@ func (c *composer) rhythmic(tokens []Phoneme, opts ComposeOptions) {
 	}
 
 	accents := c.accents(r, g.barSteps)
+	accentPitch := clampF(r.AccentPitch, 0, 12)
 	gate := float64(clampF(c.v.Length, 0.05, 1))
 	end := c.lineEnding(tokens)
 	c.snap = func(t float64) float64 { return g.nextBeat(t) }
@@ -122,7 +121,7 @@ func (c *composer) rhythmic(tokens []Phoneme, opts ComposeOptions) {
 				cl.start = t
 			}
 			pitch, vel := c.tone(tokens, i, cl)
-			pitch += rhythmAccentPitch * a
+			pitch += accentPitch * a
 			vel *= 1 + rhythmAccentVelocity*a
 			c.note(tok, t, slot*min(1, gate+end.gate[i]), pitch, vel*end.fade[i])
 			starts[i], ends[i] = t, t+slot
