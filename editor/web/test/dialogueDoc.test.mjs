@@ -5,12 +5,12 @@ import { summarize, statusText } from "../dialogueDoc.js";
 
 const village = readFileSync(new URL("../../../ebiten/example/village.dialogue.json", import.meta.url), "utf8");
 
-test("the village dialogue has nine lines said by named speakers", () => {
+test("the village dialogue has fourteen lines said by named speakers", () => {
   const lines = summarize(village);
-  assert.equal(lines?.length, 9);
+  assert.equal(lines?.length, 14);
   assert.equal(lines?.[0].who, "Wren");
   assert.equal(lines?.[6].who, "Kip");
-  assert.equal(statusText(lines, 1), "Line 2 of 9: Bram");
+  assert.equal(statusText(lines, 1), "Line 2 of 14: Bram");
 });
 
 test("text that is not a dialogue has no summary", () => {

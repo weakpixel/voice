@@ -154,7 +154,7 @@ async function dialogueMode(page) {
   assert.equal(await page.getAttribute("body", "data-mode"), "dialogue");
   assert.ok(!(await page.isVisible("#doc")), "the voice editor is hidden");
   await page.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 60000 });
-  await page.waitForFunction(() => document.getElementById("dlg-status").textContent.startsWith("Line 1 of 9: Wren"), null, { timeout: 10000 });
+  await page.waitForFunction(() => document.getElementById("dlg-status").textContent.startsWith("Line 1 of 14: Wren"), null, { timeout: 10000 });
   assert.match(await page.inputValue("#dlg-doc"), /"name": "village"/);
 
   await page.click("#dlg-tab-source");
@@ -217,27 +217,27 @@ async function scriptAndWorkspace(page, context) {
   await page.click("#mode-dialogue");
   await page.click("#dlg-tab-script");
   await page.click("#dlg-example");
-  await page.waitForFunction(() => document.querySelectorAll("#dlg-script .line").length === 9, null, { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelectorAll("#dlg-script .line").length === 14, null, { timeout: 10000 });
   await page.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 60000 });
-  assert.equal(await page.locator("#dlg-script .speaker").count(), 3);
+  assert.equal(await page.locator("#dlg-script .speaker").count(), 4);
 
   // Enter adds a line with the next speaker; the text reaches the document and the game.
-  await page.click('#dlg-script .line[data-i="8"] .text');
+  await page.click('#dlg-script .line[data-i="13"] .text');
   await page.keyboard.press("Enter");
   await page.keyboard.type("Hello again.");
-  await page.waitForFunction(() => document.querySelectorAll("#dlg-script .line").length === 10);
-  const last = (await doc()).lines[9];
-  assert.deepEqual(last, { speaker: "wren", text: "Hello again." }, "Enter adds a line for the next speaker (after the last one comes the first)");
-  await page.waitForFunction(() => document.getElementById("dlg-status").textContent.includes("of 10"), null, { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelectorAll("#dlg-script .line").length === 15);
+  const last = (await doc()).lines[14];
+  assert.deepEqual(last, { speaker: "bram", text: "Hello again." }, "Enter adds a line for the next speaker");
+  await page.waitForFunction(() => document.getElementById("dlg-status").textContent.includes("of 15"), null, { timeout: 10000 });
 
   // Alt+Up moves it, Timing leaves a default out of the file.
   await page.keyboard.press("Alt+ArrowUp");
-  assert.equal((await doc()).lines[8].text, "Hello again.");
-  await page.click('#dlg-script .line[data-i="8"] summary');
-  await page.fill('#dlg-script .line[data-i="8"] input[placeholder="0"]', "0.4");
-  assert.equal((await doc()).lines[8].delay, 0.4);
-  await page.fill('#dlg-script .line[data-i="8"] input[placeholder="0"]', "0");
-  assert.equal("delay" in (await doc()).lines[8], false, "a default is left out");
+  assert.equal((await doc()).lines[13].text, "Hello again.");
+  await page.click('#dlg-script .line[data-i="13"] summary');
+  await page.fill('#dlg-script .line[data-i="13"] input[placeholder="0"]', "0.4");
+  assert.equal((await doc()).lines[13].delay, 0.4);
+  await page.fill('#dlg-script .line[data-i="13"] input[placeholder="0"]', "0");
+  assert.equal("delay" in (await doc()).lines[13], false, "a default is left out");
 
   // A speaker's voice and pan are form fields; undo and redo walk back.
   await page.selectOption('#dlg-script .speaker[data-i="0"] .sp-voice', "robot");

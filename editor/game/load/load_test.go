@@ -26,7 +26,7 @@ func TestDecodeVillage(t *testing.T) {
 	if len(problems) > 0 || l == nil {
 		t.Fatalf("problems: %+v", problems)
 	}
-	if len(l.Script.Lines) != 9 || len(l.Voices) != 3 || l.Language != nil {
+	if len(l.Script.Lines) != 14 || len(l.Voices) != 4 || l.Language != nil {
 		t.Errorf("script %d lines, %d voices, language %v", len(l.Script.Lines), len(l.Voices), l.Language)
 	}
 }

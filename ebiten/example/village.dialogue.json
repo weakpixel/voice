@@ -4,7 +4,8 @@
   "speakers": [
     { "id": "wren", "name": "Wren", "voice": "chirpy", "pan": -0.3 },
     { "id": "bram", "name": "Bram", "voice": "gruff", "pan": 0.3 },
-    { "id": "kip", "name": "Kip", "voice": "verse" }
+    { "id": "kip", "name": "Kip", "voice": "verse" },
+    { "id": "laugh", "name": "Laugh", "voice": "haughty" }
   ],
   "lines": [
     { "speaker": "wren", "text": "Hello there, traveler! Are you lost?" },
@@ -15,6 +16,11 @@
     { "speaker": "bram", "text": "Then I had better hurry." },
     { "speaker": "kip", "text": "Hold up, traveler, hear me out. The mill is old, but the road is long, and the river sings a different song." },
     { "speaker": "bram", "text": "...Who are you?" },
-    { "speaker": "kip", "text": "Just a bard on a bridge, with a beat in my head. {wren}Follow the river{/}, like the lady said!" }
+    { "speaker": "kip", "text": "Just a bard on a bridge, with a beat in my head. {wren}Follow the river{/}, like the lady said!" },
+    { "speaker": "wren", "text": "{laugh~}Ha ha ha!{/} A lady? Nobody ever called me a lady." },
+    { "speaker": "kip", "text": "Then the song is yours, from the bridge to the hill: the lady of the river, and she's laughing still." },
+    { "speaker": "bram", "text": "I should really be going." },
+    { "speaker": "kip", "text": "Go on, traveler, the road won't wait. {wren}An hour, maybe two{/}, so don't be late!" },
+    { "speaker": "wren", "text": "{laugh~}Hee hee!{/} He's not wrong, you know. Safe travels!" }
   ]
 }
