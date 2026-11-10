@@ -6,6 +6,7 @@
 
 import { summarize, statusText } from "./dialogueDoc.js";
 import { ScriptEditor } from "./dialogueScript.js";
+import { spansOf } from "./dialogueEdit.js";
 import { formatDialogue } from "./format.js";
 import { allVoices, saveVoice, usedVoiceFiles } from "./workspace.js";
 import { storedSamples } from "./samples.js";
@@ -22,7 +23,7 @@ const HISTORY_SIZE = 200;
  *   stopPreview: () => void,
  *   toast: (msg: string) => void,
  *   starters: string[],
- *   speak: (voiceText: string, text: string, opts: {speed: number, instant: boolean}) => Promise<void>,
+ *   speak: (voiceText: string, text: string, opts: {speed: number, instant: boolean}, guests?: Map<string, string>) => Promise<void>,
  *   openVoice: (ref: string) => Promise<boolean>,
  *   restoreVoice: () => void,
  * }} hooks
@@ -72,6 +73,7 @@ export function initDialogue({ stopPreview, toast, starters, speak, openVoice, r
       if (await openVoice(ref)) setMode("voice");
     },
     onAddVoiceFile: () => voiceFiles.click(),
+    toast,
   });
 
   async function redrawScript(focus = "") {
@@ -370,15 +372,25 @@ export function initDialogue({ stopPreview, toast, starters, speak, openVoice, r
     const sp = (d?.speakers || []).find((s) => s?.id === l?.speaker);
     if (!l || !sp || !l.text) return toast("The line needs a speaker and a text");
     try {
-      let text;
       const files = await allVoices();
-      if (files.has(sp.voice)) text = files.get(sp.voice);
-      else if (starters.includes(sp.voice)) text = await (await fetch(`presets/${sp.voice}.voice.json`)).text();
-      else return toast(`No voice file ${sp.voice} in the workspace`);
+      const voiceText = async (ref) => {
+        if (files.has(ref)) return files.get(ref);
+        if (starters.includes(ref)) return (await fetch(`presets/${ref}.voice.json`)).text();
+        return null;
+      };
+      let text = await voiceText(sp.voice);
+      if (text === null) return toast(`No voice file ${sp.voice} in the workspace`);
       if (typeof sp.pan === "number") text = JSON.stringify({ ...JSON.parse(text), pan: sp.pan });
+      // The voice spans name speakers: each plays in that speaker's voice.
+      const guests = new Map();
+      for (const name of new Set(spansOf(l.text).map((s) => s.name))) {
+        const g = (d.speakers || []).find((s) => s?.id === name);
+        const gt = g && (await voiceText(g.voice));
+        if (gt) guests.set(name, gt);
+      }
       post({ type: "pause" });
       setPaused(true);
-      await speak(text, l.text, { speed: l.speed ?? 1, instant: !!l.instant });
+      await speak(text, l.text, { speed: l.speed ?? 1, instant: !!l.instant }, guests);
     } catch (e) {
       toast(`Could not play the line: ${e}`);
     }

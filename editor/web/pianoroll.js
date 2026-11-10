@@ -3,7 +3,7 @@
 // offline render's waveform and a playhead, all on one time axis.
 
 /**
- * @typedef {{on: number, off: number, instrument: string, inst: number, note: number, velocity: number}} Note
+ * @typedef {{on: number, off: number, instrument: string, inst: number, note: number, velocity: number, span?: number}} Note
  * @typedef {{notes: Note[], reveals: {at: number, offset: number}[], duration: number, textLen: number}} Timeline
  */
 
@@ -12,6 +12,12 @@ export const FIRST_PERCUSSION = 5;
 const MELODIC = ["vowel", "sonorant", "fricative", "plosive", "motif"];
 const PERC_BAND = 12; // px of the percussion band at the bottom of the roll
 const MIN_SPAN = 12; // semitones the roll shows at least
+const VOICE_BAND = 3; // px of the band at the top that shows which voice span a note belongs to
+
+/** The colour of voice span number k (from 1) in the voice band. */
+export function spanColor(k) {
+  return `hsl(${(k * 67 + 277) % 360} 60% 55%)`;
+}
 
 /**
  * The pitch range and time axis of a timeline: lo and hi are the lowest
@@ -129,6 +135,11 @@ export class PianoRoll {
       } else {
         g.fillStyle = color(`--inst-${MELODIC[n.inst]}`);
         g.fillRect(x0, y(n.note) - row / 2, x1 - x0, Math.max(2, row - 1));
+        if (n.span) {
+          // The voice band: another voice speaks this note.
+          g.fillStyle = spanColor(n.span);
+          g.fillRect(x0, 0, x1 - x0, VOICE_BAND);
+        }
       }
     }
     g.globalAlpha = 1;

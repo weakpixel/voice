@@ -21,8 +21,8 @@ type Options struct {
 	MuteBeat bool         // leave out the rhythm's percussion
 }
 
-func (o Options) say(lang *voice.Language) voice.SayOptions {
-	return voice.SayOptions{Language: lang, Speed: o.Speed, Instant: o.Instant, Clock: o.Clock, MuteBeat: o.MuteBeat}
+func (o Options) say(lang *voice.Language, spans []voice.VoiceSpan) voice.SayOptions {
+	return voice.SayOptions{Language: lang, Speed: o.Speed, Instant: o.Instant, Clock: o.Clock, MuteBeat: o.MuteBeat, Spans: spans}
 }
 
 // speed is the factor the speaker applies to time (Speed is ignored while
@@ -60,6 +60,9 @@ type Session struct {
 	aud   audition
 
 	samples samples
+
+	guests   map[string]guest // voices the markup of a line may name
+	problems []Problem        // markup problems of the current line
 }
 
 // New returns a session whose stream runs at rate (float32 stereo).
@@ -107,14 +110,17 @@ func (s *Session) SetLanguage(l *voice.Language) {
 	s.lang = l
 }
 
-// Say starts text with the current voice, replacing a running line.
-func (s *Session) Say(text string, o Options) error {
+// Say starts the line src with the current voice, replacing a running
+// line. src may use voice markup: names set with SetGuest speak their
+// spans; Problems lists the rest. Text is the line without the markup.
+func (s *Session) Say(src string, o Options) error {
 	if s.v == nil {
 		return errors.New("session: no voice")
 	}
 	s.stopAudition()
-	s.text, s.speed, s.t = text, o.speed(), 0
-	s.sp.Say(s.v, text, o.say(s.lang))
+	text, spans, probs := s.line(src)
+	s.text, s.speed, s.t, s.problems = text, o.speed(), 0, probs
+	s.sp.Say(s.v, text, o.say(s.lang, spans))
 	return nil
 }
 
@@ -147,7 +153,7 @@ func (s *Session) State() State {
 	return State{Revealed: s.sp.Revealed(), Done: s.sp.Done(), Paused: s.sp.Paused(), Audition: s.aud.playing(), Time: s.t, Events: s.sp.Events()}
 }
 
-// Text returns the current line's text.
+// Text returns the current line's text, without its markup.
 func (s *Session) Text() string { return s.text }
 
 // Timeline returns the current line's timeline.

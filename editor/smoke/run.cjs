@@ -123,6 +123,8 @@ async function main() {
     console.log("ok dialogue mode");
     await scriptAndWorkspace(page, context);
     console.log("ok script tab, workspace, share link");
+    await voiceSpans(page);
+    console.log("ok voice spans: Voice menu, game, test line");
     await themeToggle(page);
     console.log("ok theme toggle");
   } catch (e) {
@@ -285,6 +287,51 @@ async function scriptAndWorkspace(page, context) {
   assert.ok((await other.$$eval("#voice-file option", (os) => os.map((o) => o.value))).includes("bram.voice.json"), "and its voice file");
   await other.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 60000 });
   await other.close();
+}
+
+/**
+ * Voice spans: the Voice menu gives selected words another speaker's voice
+ * (the tags reach the document, the game loads it), Remove voice takes
+ * them out, and the Voice mode's test line speaks markup with the tags
+ * left out of the typed text.
+ */
+async function voiceSpans(page) {
+  const doc = async () => JSON.parse(await page.inputValue("#dlg-doc"));
+  await page.click("#mode-dialogue");
+  await page.click("#dlg-tab-script");
+  await page.click("#dlg-example");
+  await page.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 60000 });
+  const text = '#dlg-script .line[data-i="0"] .text';
+  const select = async (word) => {
+    await page.focus(text);
+    await page.$eval(text, (e, w) => e.setSelectionRange(e.value.indexOf(w), e.value.indexOf(w) + w.length), word);
+  };
+  await select("traveler");
+  await page.click('#dlg-script .line[data-i="0"] .voice-btn');
+  await page.click('#dlg-script .voice-menu button:has-text("Bram")');
+  assert.equal((await doc()).lines[0].text, "Hello there, {bram}traveler{/}! Are you lost?");
+  assert.equal(await page.locator('#dlg-script .line[data-i="0"] .text-marks mark').count(), 1, "the span is highlighted");
+  await page.waitForFunction(() => document.getElementById("dlg-validity").textContent === "Valid", null, { timeout: 10000 });
+  // A tag naming no speaker is a problem of the loader at the line's text.
+  await page.click("#dlg-tab-source");
+  await page.fill("#dlg-doc", (await page.inputValue("#dlg-doc")).replace("{bram}", "{nobody}"));
+  await page.waitForFunction(() => document.getElementById("dlg-problems").textContent.includes("lines[0].text"), null, { timeout: 10000 });
+  await page.fill("#dlg-doc", (await page.inputValue("#dlg-doc")).replace("{nobody}", "{bram}"));
+  await page.click("#dlg-tab-script");
+  await select("travel");
+  await page.click('#dlg-script .line[data-i="0"] .voice-btn');
+  await page.click('#dlg-script .voice-menu button:has-text("Remove voice")');
+  assert.equal((await doc()).lines[0].text, "Hello there, traveler! Are you lost?");
+
+  await page.click("#mode-voice");
+  await page.selectOption("#starter", "soft");
+  await page.waitForSelector(".validity.ok");
+  await page.fill("#line", "He said {gruff}stay back{/} and left.");
+  await page.click("#play");
+  await page.waitForFunction(() => !document.getElementById("stop").disabled, null, { timeout: 5000 });
+  await page.waitForFunction(() => document.getElementById("stop").disabled, null, { timeout: 30000 });
+  assert.equal(await page.textContent("#shown"), "He said stay back and left.");
+  await page.waitForFunction(() => Number(document.getElementById("roll").dataset.notes) > 0, null, { timeout: 10000 });
 }
 
 /** The Theme button forces light or dark whatever the system says, and remembers it. */

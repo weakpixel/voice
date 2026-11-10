@@ -47,6 +47,12 @@ type LineRender struct {
 // NewLineRender prepares the render of a line; Step renders it. load
 // resolves sample instruments (nil if the voice has none).
 func NewLineRender(v *voice.Voice, lang *voice.Language, text string, o Options, rate int, load synth.SampleLoader) (*LineRender, error) {
+	return newLineRender(v, lang, text, nil, o, rate, load)
+}
+
+// newLineRender is NewLineRender with voice spans, each voice set on its
+// span's owner of the render's stream.
+func newLineRender(v *voice.Voice, lang *voice.Language, text string, spans []voice.VoiceSpan, o Options, rate int, load synth.SampleLoader) (*LineRender, error) {
 	if v == nil {
 		return nil, errors.New("session: no voice")
 	}
@@ -57,11 +63,16 @@ func NewLineRender(v *voice.Voice, lang *voice.Language, text string, o Options,
 	if err := st.SetVoice(owner, v, load); err != nil {
 		return nil, err
 	}
+	for _, s := range spans {
+		if err := st.SetVoice(s.Owner, s.Voice, load); err != nil {
+			return nil, err
+		}
+	}
 	if lang == nil {
 		lang = voice.DefaultLanguage()
 	}
 	sp := voice.NewSpeaker(st, owner)
-	sp.Say(v, text, o.say(lang))
+	sp.Say(v, text, o.say(lang, spans))
 	return &LineRender{sp: sp, tl: sp.Timeline(), renderer: renderer{st: st, rate: rate}}, nil
 }
 

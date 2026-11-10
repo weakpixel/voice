@@ -41,6 +41,8 @@ func main() {
 		"loadVoice":    js.FuncOf(b.loadVoice),
 		"loadLanguage": js.FuncOf(b.loadLanguage),
 		"say":          js.FuncOf(b.say),
+		"setGuest":     js.FuncOf(b.setGuest),
+		"clearGuests":  js.FuncOf(func(js.Value, []js.Value) any { s.ClearGuests(); return nil }),
 		"update":       js.FuncOf(b.update),
 		"audition":     js.FuncOf(b.audition),
 		"addSample":    js.FuncOf(b.addSample),
@@ -222,7 +224,36 @@ func (b *bridge) say(_ js.Value, a []js.Value) any {
 	if err := b.s.Say(a[0].String(), options(a)); err != nil {
 		return js.Null()
 	}
-	return toJS(session.Data(b.s.Voice(), b.s.Timeline()))
+	d := session.Data(b.s.Voice(), b.s.Timeline())
+	d.Text, d.Problems = b.s.Text(), b.s.Problems()
+	return toJS(d)
+}
+
+// setGuest(name, text) loads a voice document (or, for "", the starter
+// voice called name) as the voice the markup name stands for in the next
+// lines. Returns "" or what is wrong.
+func (b *bridge) setGuest(_ js.Value, a []js.Value) any {
+	name, text := a[0].String(), a[1].String()
+	var v *voice.Voice
+	if text == "" {
+		p, err := voice.Preset(name)
+		if err != nil {
+			return err.Error()
+		}
+		v = p
+	} else {
+		var problems []session.Problem
+		if v, problems = session.LoadVoice(text); v == nil {
+			return problems[0].Message
+		}
+		if missing := b.s.MissingSamples(text); len(missing) > 0 {
+			return missing[0].Message
+		}
+	}
+	if err := b.s.SetGuest(name, v); err != nil {
+		return err.Error()
+	}
+	return ""
 }
 
 // update(dtMs) advances the line and returns {revealed, done, paused, time,
