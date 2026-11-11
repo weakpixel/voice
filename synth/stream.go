@@ -29,6 +29,9 @@ const (
 	// BlockFrames is the render block. Sink calls are applied at the start
 	// of a block, and glide and vibrato are updated once per block.
 	BlockFrames = 64
+	// DefaultPending is the number of commands a stream queues between two
+	// blocks before it compacts the queue (see [StreamConfig.Pending]).
+	DefaultPending = 1024
 )
 
 // StreamConfig configures a [Stream].
@@ -36,6 +39,11 @@ type StreamConfig struct {
 	SampleRate int    // MinSampleRate to MaxSampleRate, required
 	Format     Format // byte format of Read; FormatFloat32 by default
 	Voices     int    // size of the voice pool; 0 means DefaultVoices
+	// Pending is how many commands (Sink and Set calls) the stream queues
+	// before the next block; 0 means DefaultPending. A full queue is
+	// compacted (see [Stream.DropNotes]), so a stream nobody reads keeps a
+	// bounded queue.
+	Pending int
 }
 
 // Stream is the synthesizer: an endless PCM source for an audio player and a
@@ -45,15 +53,19 @@ type StreamConfig struct {
 // player's); they own the voices. NoteOn, NoteOff, Release, SetPatch and
 // SetGain may be called from any goroutine: they append a command to a
 // mutex-guarded buffer that the renderer swaps for its own at the start of
-// every block of BlockFrames frames. Nothing is dropped, and once the
-// buffers have grown to the busiest block they no longer allocate.
+// every block of BlockFrames frames. The buffer holds StreamConfig.Pending
+// commands. When it is full (nobody reads the stream, for example before a
+// browser allows audio), it is compacted like [Stream.DropNotes] does:
+// queued notes are dropped, settings and releases are kept, and the
+// buffer does not grow.
 type Stream struct {
 	rate       int
 	format     Format
 	frameBytes int
 
 	mu      sync.Mutex
-	pending []command // guarded by mu, filled by the Sink methods
+	pending []command   // guarded by mu, filled by the Sink methods
+	marks   []ownerMark // guarded by mu, scratch of compact
 
 	// Owned by the render goroutine.
 	active  []command
@@ -89,6 +101,20 @@ type command struct {
 	reverb   Reverb
 }
 
+// ownerMark is what compact has seen of one owner, walking the queue
+// from its end.
+type ownerMark struct {
+	owner   voice.Owner
+	release bool   // a Release or a dropped NoteOff: the owner gets one Release
+	patched uint16 // bit i: the last patch of instrument i is already kept
+}
+
+// The patched bits of ownerMark hold one bit per instrument.
+const _ = uint16(1 << (voice.InstrumentCount - 1))
+
+// compactMarks is how many owners compact handles without allocating.
+const compactMarks = 32
+
 // NewStream returns a silent stream with no patches. It reports every
 // problem of cfg together.
 func NewStream(cfg StreamConfig) (*Stream, error) {
@@ -112,6 +138,13 @@ func NewStream(cfg StreamConfig) (*Stream, error) {
 	if voices < 0 {
 		errs = append(errs, fmt.Errorf("synth: negative voice count %d", cfg.Voices))
 	}
+	pending := cfg.Pending
+	if pending == 0 {
+		pending = DefaultPending
+	}
+	if pending < 0 {
+		errs = append(errs, fmt.Errorf("synth: negative pending count %d", cfg.Pending))
+	}
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
@@ -119,8 +152,9 @@ func NewStream(cfg StreamConfig) (*Stream, error) {
 		rate:       cfg.SampleRate,
 		format:     cfg.Format,
 		frameBytes: frameBytes,
-		pending:    make([]command, 0, 256),
-		active:     make([]command, 0, 256),
+		pending:    make([]command, 0, pending),
+		active:     make([]command, 0, pending),
+		marks:      make([]ownerMark, 0, compactMarks),
 		pool:       newPool(voices, cfg.SampleRate),
 		patches:    make(map[voice.Owner]*[voice.InstrumentCount]*Patch),
 		gain:       1,
@@ -187,10 +221,99 @@ func (s *Stream) Release(owner voice.Owner) {
 	s.push(command{kind: cmdRelease, owner: owner})
 }
 
+// DropNotes drops the notes queued since the last block, for a caller
+// that knows nobody hears the stream: call it while the audio player does
+// not read (before a browser allows audio, while a window is paused), and
+// reading starts with the notes sent from then on instead of a burst of
+// old ones. It keeps every Release, the last patch of each owner and
+// instrument, the last gain and the last reverb. Each owner whose NoteOff
+// it drops gets a Release instead, so a note that sounded before the
+// queue filled up still ends (and with it the owner's other notes). The
+// stream does the same by itself when its queue is full. Safe from any
+// goroutine; allocates nothing for up to 32 owners in the queue.
+func (s *Stream) DropNotes() {
+	s.mu.Lock()
+	s.compact()
+	s.mu.Unlock()
+}
+
 func (s *Stream) push(c command) {
 	s.mu.Lock()
+	// Compact at the capacity instead of growing. When compaction keeps
+	// everything (more owners with settings than the capacity), append
+	// grows the slice and the next compaction waits for the new capacity,
+	// so compaction never runs on every push.
+	if len(s.pending) == cap(s.pending) {
+		s.compact()
+	}
 	s.pending = append(s.pending, c)
 	s.mu.Unlock()
+}
+
+// compact drops the queued notes in place (see DropNotes). The caller
+// holds mu.
+//
+// It walks the queue from its end, so the first patch, gain and reverb it
+// meets are the last ones sent, and moves what it keeps to the end of the
+// slice in the original order. The Releases then go to the front: they act
+// on voices only, settings on the patch table, gain and reverb only, so
+// putting them first changes nothing but makes sure they come before any
+// note queued after the compaction. There are at most as many Releases as
+// dropped NoteOffs and Releases, so the front never overruns the kept part.
+func (s *Stream) compact() {
+	q := s.pending
+	s.marks = s.marks[:0]
+	keep := len(q) // q[keep:] is kept, in order
+	seenGain, seenReverb := false, false
+	for i := len(q) - 1; i >= 0; i-- {
+		c := &q[i]
+		kept := false
+		switch c.kind {
+		case cmdNoteOff, cmdRelease:
+			s.mark(c.owner).release = true
+		case cmdPatch:
+			m, bit := s.mark(c.owner), uint16(1)<<c.inst
+			if m.patched&bit == 0 {
+				m.patched |= bit
+				kept = true
+			}
+		case cmdGain:
+			kept, seenGain = !seenGain, true
+		case cmdReverb:
+			kept, seenReverb = !seenReverb, true
+		}
+		if kept {
+			keep--
+			q[keep] = *c
+		}
+	}
+	n := 0
+	for _, m := range s.marks {
+		if m.release {
+			n++
+		}
+	}
+	end := n + copy(q[n:], q[keep:])
+	n = 0
+	for _, m := range s.marks {
+		if m.release {
+			q[n] = command{kind: cmdRelease, owner: m.owner}
+			n++
+		}
+	}
+	clear(q[end:]) // drop patch pointers
+	s.pending = q[:end]
+}
+
+// mark returns the mark of owner, adding one.
+func (s *Stream) mark(owner voice.Owner) *ownerMark {
+	for i := range s.marks {
+		if s.marks[i].owner == owner {
+			return &s.marks[i]
+		}
+	}
+	s.marks = append(s.marks, ownerMark{owner: owner}) // allocates beyond compactMarks owners
+	return &s.marks[len(s.marks)-1]
 }
 
 // Read fills p with whole frames in the stream's format and returns the

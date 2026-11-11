@@ -237,6 +237,9 @@ func TestConcurrentSink(t *testing.T) {
 			if i%7 == 0 {
 				s.Release(1)
 			}
+			if i%13 == 0 {
+				s.DropNotes()
+			}
 		}
 	})
 	buf := make([]byte, 8*256)
@@ -270,6 +273,10 @@ func TestAllocs(t *testing.T) {
 		}
 		s.NoteOff(1, voice.Instrument(2), 50)
 		s.Release(2)
+		s.DropNotes()
+		for range 4 {
+			s.NoteOn(1, voice.Instrument(i%voice.InstrumentCount), float32(48+i%24), 0.8, 0)
+		}
 		s.Read(buf)
 		s.Render(left, right)
 	}

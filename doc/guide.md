@@ -343,6 +343,7 @@ s, err := synth.NewStream(synth.StreamConfig{
 	SampleRate: 48000,              // 16000 to 192000, required
 	Format:     synth.FormatFloat32, // or synth.FormatInt16
 	Voices:     32,                  // pool size, 0 means 32
+	Pending:    1024,                // commands queued between blocks, 0 means 1024
 })
 ```
 
@@ -354,8 +355,11 @@ s, err := synth.NewStream(synth.StreamConfig{
 - `SetVoice(owner, v, load)` sets all instruments of a voice at once, its five instruments and its percussion sounds (`synth.PatchFromSpec` for each); `load` resolves sample names and may be nil when the voice uses none. It reports every instrument's errors together and sets nothing on error.
 - `SetGain(g)` sets the master gain (1 by default). The output is clipped to -1 to 1.
 - `SetReverb(synth.Reverb{Size, Damping, Width})` sets the stream's one reverb (all fields 0 to 1; `synth.DefaultReverb` is Size 0.75, Damping 0.4, Width 1). Every patch sends into it with its own `Reverb` level, so one stream is one room for all speakers. A reverb that receives nothing and has died away costs nothing.
+- `DropNotes()` drops the notes queued since the last block and keeps the settings: every `Release`, the last patch of each owner and instrument, the last gain and reverb. An owner whose `NoteOff` it drops gets a `Release` instead, so nothing keeps sounding. Call it while nobody hears the stream (before a browser allows audio, while the player is paused): when reading starts, the notes sent from then on play, not a burst of old ones.
 
-**Threading.** `Read` and `Render` belong to the audio player's goroutine; never call them concurrently. `NoteOn`, `NoteOff`, `Release`, `SetPatch` and `SetGain` are safe from any goroutine. They take effect at the start of the next block of `synth.BlockFrames` (64) frames, 1.3 ms at 48 kHz. The latency you hear is the player's buffer plus one block; keep the player buffer small (50 ms works).
+**Queue.** Commands wait in a queue of `Pending` commands (`synth.DefaultPending`, 1024, is half a minute of one speaker or more) until the next block. When the queue is full because nobody reads the stream, the stream compacts it as `DropNotes` does, so memory stays bounded however long the stream is not read.
+
+**Threading.** `Read` and `Render` belong to the audio player's goroutine; never call them concurrently. `NoteOn`, `NoteOff`, `Release`, `SetPatch`, `SetVoice`, `SetGain`, `SetReverb` and `DropNotes` are safe from any goroutine. They take effect at the start of the next block of `synth.BlockFrames` (64) frames, 1.3 ms at 48 kHz. The latency you hear is the player's buffer plus one block; keep the player buffer small (50 ms works).
 
 **Voices.** Each note takes a voice of the pool. When all are busy, a new note steals the oldest releasing voice, else the oldest sounding one; the stolen voice fades out over `synth.StealFade` (2 ms) and the new note starts after it.
 

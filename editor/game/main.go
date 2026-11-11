@@ -40,6 +40,7 @@ const sampleRate = 48000
 // Ebiten's loop, so they only queue commands; Update runs them.
 type game struct {
 	box    *dialoguebox.Box
+	stream *synth.Stream
 	player *voiceebiten.Player
 	ctx    *audio.Context
 
@@ -66,6 +67,12 @@ func (g *game) Update() error {
 	}
 	if err := g.box.Update(); err != nil {
 		return err
+	}
+	if !g.ctx.IsReady() {
+		// The browser plays no audio before the first click into the game,
+		// so nothing reads the stream: drop the notes, or the click would
+		// start them all at once.
+		g.stream.DropNotes()
 	}
 	if p := g.box.Player(); p != nil {
 		for _, e := range p.Events() {
@@ -126,7 +133,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	g := &game{box: dialoguebox.New(stream, dialoguebox.Options{}), player: player, ctx: ctx}
+	g := &game{box: dialoguebox.New(stream, dialoguebox.Options{}), stream: stream, player: player, ctx: ctx}
 
 	js.Global().Set("voiceGame", map[string]any{
 		"load": js.FuncOf(func(_ js.Value, a []js.Value) any {
