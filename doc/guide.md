@@ -133,7 +133,7 @@ for _, e := range player.Events() { ... }  // LineStarted, LineDone, DialogueFin
 
 A nested module, so only programs that use it depend on Ebiten. `voiceebiten.NewPlayer(ctx, stream, bufferSize)` plays a `FormatFloat32` stream at the context's sample rate (an error otherwise) with the given buffer (0 means 50 ms, which keeps the sound within about a frame or three of the text). `SetVolume`, `Volume`, `Close`. Browsers start audio only after a click or key press; Ebiten resumes its context on the first input.
 
-Until the root module has a version tag, the nested module finds it through a `replace` to `..`: use it from a checkout of this repository (or a `go.work`).
+The nested module still finds the root module through a `replace` to `..`: use it from a checkout of this repository (or a `go.work`).
 
 ### The dialogue box (`ebiten/dialoguebox`)
 
