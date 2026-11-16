@@ -118,7 +118,7 @@ Measured in headless Chromium (2026-11-05, same container as below), a 107-chara
 
 ## Not built yet
 
-- A version tag of the root module: until then the `ebiten` module reaches it through `replace => ..` and is not `go get`-able on its own.
+- An `ebiten` module that is `go get`-able on its own: it still reaches the root module through `replace => ..` instead of requiring a tagged version.
 - Sample-accurate scheduling: notes start at the next 64-frame block. An optional `TimedSink` with time offsets can add it without changing `Sink`.
 - A SoundFont backend in a nested `sf2` module (optional).
 - Chorus, delay, FM, a reverb per speaker.

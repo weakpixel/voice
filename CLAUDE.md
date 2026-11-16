@@ -1,6 +1,6 @@
 # voice
 
-A Go library that turns dialogue text into musical gibberish for games: text is split into phonemes of a configurable fictional language, each phoneme plays a short blip on a small built-in synthesizer, a quiet motif follows the punctuation, and the caller learns how much text to reveal at every moment. Module `github.com/weakpixel/voice`, Go 1.27, MIT. It works standalone (any Go program, any audio output, offline rendering to WAV) and is wrapped later by the Weakpixel Engine (repository `weakpixel/weakpixel`) in a thin ECS package.
+A Go library that turns dialogue text into musical gibberish for games: text is split into phonemes of a configurable fictional language, each phoneme plays a short blip on a small built-in synthesizer, a quiet motif follows the punctuation, and the caller learns how much text to reveal at every moment. Module `github.com/weakpixel/voice`, Go 1.27, MIT. It works standalone (any Go program, any audio output, offline rendering to WAV) and is wrapped by the Weakpixel engine (repository `weakpixel/engine`) in a thin ECS package.
 
 ## The docs are the spec
 
@@ -47,7 +47,7 @@ While iterating, run only the tests of the package you changed. Run `make all` a
 
 - **The core module has no dependencies.** The root, `synth`, `wav`, `voicetest` and `cmd/voiceplay` use the standard library only. Ebiten lives only in the nested `ebiten` module, go-meltysynth only in the nested `sf2` module. Never add a `require` to the root `go.mod`. A test checks this.
 - **No cgo**, anywhere. Everything must build for js/wasm.
-- **No ECS and no engine code in this repository.** The library knows nothing about the Weakpixel Engine; the engine wraps it.
+- **No ECS and no engine code in this repository.** The library knows nothing about the Weakpixel engine; the engine wraps it.
 - **Build outputs go into `./build`** (`go build -o build/<name>`, WAV renders into `build/`), and `build/` stays in `.gitignore`. Never commit binaries, `*.test` files or rendered audio. Before every commit run `git status --short` and `git diff --cached --stat`, and stage files by name, not with `git add -A` or `git add .`.
 - **Every note on gets a note off or a release.** `Skip`, `Stop`, a `Say` over a running line and `Close` release the speaker's notes. Tests check that no note survives.
 - **Hot paths allocate nothing in steady state:** `Speaker.Update`, `Stream.Read`, `Stream.Render` and the `Sink` methods. Enforce it with `testing.AllocsPerRun` tests, not by eye.
